@@ -6,13 +6,11 @@
 An [ansible collection](https://galaxy.ansible.com/ui/repo/published/nephelaiio/patroni/) to install and manage [Patroni](https://patroni.readthedocs.io/en/latest/README.html) clusters
 
 ## ToDo
-* Add feature to pin Consul packages
-* Add feature to pin Patroni packages
 * Add HAProxy deployment playbook
-* Add PGCat deployment to install playbook
 * Test dataplane integration
 * Refactor Consul playbook into independent collection
 * Refactor all collections with Consul deployments to pull from Consul collection
+* Add PGCat deployment to install playbook
 * Add support for Rocky Linux
 
 ## Collection hostgroups
@@ -31,9 +29,11 @@ Cluster wide parameters
 
 | Parameter                            |                         Default | Description                             | Required |
 |:-------------------------------------|--------------------------------:|:----------------------------------------|:---------|
+| patroni_release_postgresql           |                          16.2-1 | Target PostgreSQL release               | false    |
+| patroni_release_patroni              |                         3.2.2-2 | Target Patroni release                  | false    |
 | patroni_cluster_name                 |                             n/a | Patroni cluster name                    | true     |
 | patroni_cluster_databases            |                              [] | Patroni cluster databases               | false    |
-| patroni_cluster_roles                |                              [] | Patroni cluster roles               | false    |
+| patroni_cluster_roles                |                              [] | Patroni cluster roles                   | false    |
 | patroni_cluster_api_username         |                         patroni | Patroni cluster restapi username        | false    |
 | patroni_cluster_api_password         |                             n/a | Patroni cluster restapi password        | true     |
 | patroni_cluster_postgres_password    |                             n/a | Patroni cluster replication  password   | true     |

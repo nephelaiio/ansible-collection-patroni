@@ -9,6 +9,8 @@ fileignoreconfig:
     ignore_detectors: [filecontent]
   - filename: molecule/databases/molecule.yml
     ignore_detectors: [filecontent]
+  - filename: molecule/update/molecule.yml
+    ignore_detectors: [filecontent]
   - filename: playbooks/vars/main.yml
     ignore_detectors: [filecontent]
   - filename: playbooks/facts.yml

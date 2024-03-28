@@ -36,6 +36,7 @@ jobs:
         scenario:
           - install
           - databases
+          - update
         image:
           - name: ubuntu2204
             command: /lib/systemd/systemd

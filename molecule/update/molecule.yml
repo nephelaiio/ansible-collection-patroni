@@ -1,0 +1,129 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+    requirements-file: requirements.yml
+driver:
+  name: docker
+platforms:
+  - name: patroni-update-cluster-01
+    image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /tmp
+      - /opt
+    groups:
+      - patroni_cluster
+  - name: patroni-update-cluster-02
+    image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /tmp
+      - /opt
+    groups:
+      - patroni_cluster
+  - name: patroni-install-cluster-03
+    image: "geerliupdate/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /tmp
+      - /opt
+    groups:
+      - patroni_cluster
+  - name: patroni-update-consul-01
+    image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /tmp
+      - /opt
+    groups:
+      - patroni_consul
+  - name: patroni-update-consul-02
+    image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /tmp
+      - /opt
+    groups:
+      - patroni_consul
+  - name: patroni-update-consul-03
+    image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /tmp
+      - /opt
+    groups:
+      - patroni_consul
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      remote_tmp: /tmp
+      callbacks_enabled: ansible.posix.profile_tasks
+  playbooks:
+    prepare: ../common/prepare.yml
+    converge: ../common/install.yml
+    side_effect: ../common/update.yml
+    verify: ../common/verify.yml
+  inventory:
+    hosts:
+      all:
+        vars:
+          postgresql_nolog: false
+          patroni_config_hostnames: false
+          patroni_consul_backuppath: /backup
+          patroni_cluster_name: molecule
+          patroni_cluster_api_password: molecule
+          patroni_cluster_postgres_password: molecule
+          patroni_cluster_replication_password: molecule
+          patroni_watchdog_enable: false
+          patroni_watchdog_mode: off
+verifier:
+  name: ansible
+scenario:
+  prepare_sequence:
+    - prepare
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+  cleanup_sequence:
+    - cleanup
+  test_sequence:
+    - dependency
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify

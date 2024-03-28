@@ -29,11 +29,26 @@
         path: "{{ _postgresql_conf_main }}"
       register: _postgresql_conf_main_query
 
-    - name: Deploy PostgreSQL packages
-      ansible.builtin.include_role:
-        name: nephelaiio.patroni.postgresql
-      vars:
-        postgresql_conf_main_file: "{{ _postgresql_conf_main_query.stat.exists | ternary('postgresql.base.conf', 'postgresql.conf') }}"
+    - name: Deploy PostgreSQL Debian packages
+      when: ansible_os_family == "Debian"
+      block:
+        - name: Query PostgreSQL releases
+          ansible.builtin.shell:
+            cmd: "apt-cache madison {{ item }} | awk -F'|' '{ print $2 }' | grep {{ _release }} | uniq | sort -r | head -1 | xargs"
+            executable: "/bin/bash"
+          vars:
+            _release: "{{ _patroni_release_postgresql }}"
+          loop: "{{ [_postgresql_package_name] | flatten }}"
+          register: _postgresql_versions
+          changed_when: false
+
+        - name: Install PostgreSQL
+          ansible.builtin.include_role:
+            name: nephelaiio.patroni.postgresql
+          vars:
+            _results: "{{ _postgresql_versions.results }}"
+            postgresql_conf_main_file: "{{ _postgresql_conf_main_query.stat.exists | ternary('postgresql.base.conf', 'postgresql.conf') }}"
+            postgresql_package_name: "{{ _results | map('nephelaiio.plugins.map_join', ['item', 'stdout'], '=') }}"
 
     - name: Install Patroni
       ansible.builtin.package:

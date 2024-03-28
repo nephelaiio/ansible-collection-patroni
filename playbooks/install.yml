@@ -2,8 +2,10 @@
 - name: Prepare cluster nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.prepare
 
+
 - name: Prepare cluster nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.consul
+
 
 - name: Deploy cluster members
   ansible.builtin.import_playbook: nephelaiio.patroni.patroni
