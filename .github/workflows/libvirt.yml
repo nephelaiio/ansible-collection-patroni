@@ -10,7 +10,6 @@ jobs:
   libvirt:
     name: libvirt
     runs-on: libvirt
-    needs: version
     strategy:
       matrix:
         scenario:

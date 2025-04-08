@@ -7,16 +7,16 @@ An [ansible collection](https://galaxy.ansible.com/ui/repo/published/nephelaiio/
 
 ## ToDo
 
-* Add slave cluster bootstrap option
-* Add slave cluster test scenario
-* Test dataplane integration
-* Add pgbench performance testing
-* Add PGCat deployment to install playbook
+- Add slave cluster bootstrap option
+- Add slave cluster test scenario
+- Test dataplane integration
+- Add pgbench performance testing
+- Add PGCat deployment to install playbook
 
 ## Collection hostgroups
 
 | Hostgroup                 |              Default | Description                                               |
-|:--------------------------|---------------------:|:----------------------------------------------------------|
+| :------------------------ | -------------------: | :-------------------------------------------------------- |
 | patroni_cluster_group     |    'patroni_cluster' | Patroni DBMS hosts                                        |
 | patroni_consul_group      |     'patroni_consul' | Patroni Consul Distibuted Configuration Store (DCS) hosts |
 | patroni_barman_group      |     'patroni_barman' | Patroni Barman hosts                                      |
@@ -25,12 +25,12 @@ An [ansible collection](https://galaxy.ansible.com/ui/repo/published/nephelaiio/
 
 ## Collection variables
 
-The following is the list of parameters intended for end-user manipulation: 
+The following is the list of parameters intended for end-user manipulation:
 
 Cluster wide parameters
 
 | Parameter                                 |          Default | Description                                  | Required |
-|:------------------------------------------|-----------------:|:---------------------------------------------|:---------|
+| :---------------------------------------- | ---------------: | :------------------------------------------- | :------- |
 | patroni_release_postgresql                |             16.2 | Target PostgreSQL release                    | false    |
 | patroni_release_patroni                   |            3.2.2 | Target Patroni release                       | false    |
 | patroni_release_consul                    |         1.18.1-1 | Target Consul release                        | false    |
@@ -70,15 +70,15 @@ Cluster wide parameters
 | patroni_barman_conf_bwlimit               |                0 | Barman bandwidth limit                       | false    |
 | patroni_barman_conf_include               |               '' | Barman main configuration include snippet    | false    |
 | patroni_barman_conf_cluster               |               '' | Barman cluster configuration include snippet | false    |
-| patroni_barman_cron_crontab               |        * * * * * | Schedule for `barman cron` cronjob           | false    |
-| patroni_barman_backup_crontab             |        0 0 * * * | Schedule for `barman backup` cronjob         | false    |
+| patroni_barman_cron_crontab               |   \* \* \* \* \* | Schedule for `barman cron` cronjob           | false    |
+| patroni_barman_backup_crontab             |     0 0 \* \* \* | Schedule for `barman backup` cronjob         | false    |
 | patroni_barman_backup_dir                 |  /var/lib/barman | Barman backup directory                      | false    |
 | patroni_cluster_pg_stat_statements_enable |             true | Enable pg_stat_statements extension          | false    |
 | patroni_cluster_pg_stat_statements_max    |             true | Enable pg_stat_statements extension          | false    |
 
 where <node_object> follows the following json schema
 
-``` json
+```json
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "array",
@@ -93,19 +93,15 @@ where <node_object> follows the following json schema
           "type": "string"
         }
       },
-      "required": [
-        "name",
-        "address"
-      ]
+      "required": ["name", "address"]
     }
   ]
 }
-
 ```
 
 ## Collection playbooks
 
-* nephelaiio.patroni.install: Install and bootstrap cluster
+- nephelaiio.patroni.install: Install and bootstrap cluster
 
 ## Testing
 
@@ -113,14 +109,13 @@ Please make sure your environment has [docker](https://www.docker.com) installed
 
 Role is tested against the following distributions (docker images):
 
-  * Ubuntu Jammy
-  * Ubuntu Focal
-  * Debian 12
-  * Rocky Linux 9
+- Ubuntu Jammy
+- Ubuntu Focal
+- Debian 12
+- Rocky Linux 9
 
 You can test the collection directly from sources using command `make test`
 
 ## License
 
 This project is licensed under the terms of the [MIT License](/LICENSE)
-
