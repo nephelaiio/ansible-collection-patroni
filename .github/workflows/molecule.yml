@@ -1,6 +1,9 @@
 ---
 name: molecule
 
+env:
+  DEVBOX_VERSION: ${{ vars.DEVBOX_VERSION }}
+
 on:
   pull_request:
     branches:
@@ -25,25 +28,11 @@ jobs:
       - name: Check out the codebase
         uses: actions/checkout@v4
 
-      - name: Set up python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Install devbox
+        uses: jetify-com/devbox-install-action@v0.12.0
 
-      - name: Update ubuntu repositories
-        run: sudo apt-get update
-
-      - name: Install make
-        run: sudo apt-get install -y make
-
-      - name: Install dependencies
-        run: make install
-
-      - name: Debug test environment
-        run: make debug
-
-      - name: Install role requirements
-        run: make requirements
+      - name: Install requirements
+        run: devbox run -- make requirements
 
       - name: Run molecule tests.
         run: make test

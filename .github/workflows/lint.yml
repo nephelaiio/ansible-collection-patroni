@@ -1,6 +1,9 @@
 ---
 name: lint
 
+env:
+  DEVBOX_VERSION: ${{ vars.DEVBOX_VERSION }}
+
 on:
   pull_request:
     branches:
@@ -14,16 +17,8 @@ jobs:
       - name: Check out the codebase
         uses: actions/checkout@v4
 
-      - name: Set up python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Update ubuntu repositories
-        run: sudo apt-get update
-
-      - name: Install make
-        run: sudo apt-get install -y make
+      - name: Install devbox
+        uses: jetify-com/devbox-install-action@v0.12.0
 
       - name: Lint code
-        run: make lint
+        run: devbox run -- make lint

@@ -106,6 +106,7 @@
 
         - name: Set watchdog permissions
           ansible.builtin.command: "chown {{ _postgresql_user }}:{{ _postgresql_group }} /dev/watchdog"
+          tags: skip_ansible_lint
 
     - name: Install Patroni
       ansible.builtin.package:

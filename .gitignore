@@ -1,2 +1,8 @@
+# directories
+.venv/
+.devbox/
+.ansible/
+
+# file globs
 nephelaiio-patroni-*.tar.gz
 *.ymle

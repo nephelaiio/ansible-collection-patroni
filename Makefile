@@ -26,21 +26,14 @@ test: lint
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
 
 install:
-	@type poetry >/dev/null 2>/dev/null 2>/dev/null || pip3 install poetry
-	@poetry self add poetry-plugin-export
-	@type yq >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y yq
-	@type expect >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y expect
-	@type nmcli >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo NetworkManager; else echo network-manager; fi)
-	@sudo ${PKGMAN} install -y xfsprogs
 	@sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo libvirt-devel; else echo libvirt-dev; fi)
 	@poetry install --no-root
 
-lint: requirements
+lint:
 	poetry run yamllint .
-	poetry run ansible-lint playbooks/
+	ANSIBLE_COLLECTIONS_SCAN_SYS_PATH=false poetry run ansible-lint -- playbooks/ --exclude roles --exclude .ansible/
 
 requirements: install
-	@python --version
 	@rm -rf ${ROLE_DIR}/*
 	@if [ -f ${ROLE_FILE} ]; then \
 		poetry run ansible-galaxy role install \

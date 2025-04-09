@@ -16,6 +16,7 @@
         password: "{{ _patroni_cluster_barman_password }}"
         role_attr_flags: SUPERUSER
       no_log: "{{ _patroni_nolog }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
 - name: Deploy Barman
@@ -61,6 +62,7 @@
             mode: "u=rw,go="
           retries: 2
           delay: 5
+          become: true
           become_user: "{{ _patroni_barman_user }}"
           register: _barman_keypair
 
@@ -161,28 +163,38 @@
           block:
             - name: Initialize Barman backup
               ansible.builtin.command: "barman cron"
+              become: true
               become_user: "{{ _patroni_barman_user }}"
+              tags: skip_ansible_lint
 
             - name: Verify Barman cluster backup configuration
               ansible.builtin.command: "barman check {{ _patroni_cluster_name }}"
+              become: true
               become_user: "{{ _patroni_barman_user }}"
+              tags: skip_ansible_lint
 
           rescue:
             - name: Switch Barman wal
               ansible.builtin.command: "barman switch-wal {{ _patroni_cluster_name }}"
+              become: true
               become_user: "{{ _patroni_barman_user }}"
+              tags: skip_ansible_lint
 
             - name: Reinitialize Barman cron
               ansible.builtin.command: "barman cron"
+              become: true
               become_user: "{{ _patroni_barman_user }}"
+              tags: skip_ansible_lint
 
             - name: Verify Barman cluster backup configuration
               ansible.builtin.command: "barman check {{ _patroni_cluster_name }}"
+              become: true
               become_user: "{{ _patroni_barman_user }}"
               register: _barman_check
               retries: 10
               delay: 6
               until: _barman_check is succeeded
+              tags: skip_ansible_lint
 
       rescue:
         - name: Restore Barman cluster configuration
