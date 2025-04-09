@@ -1,7 +1,7 @@
 ---
 namespace: nephelaiio
 name: patroni
-version: 0.1.5
+version: 0.1.6
 readme: README.md
 authors:
   - Ted Cook <358176+teddyphreak@users.noreply.github.com>
@@ -18,4 +18,6 @@ repository: http://github.com/nephelaiio/ansible-collection-patroni
 documentation: http://github.com/nephelaiio/ansible-collection-patroni
 homepage: http://github.com/nephelaiio/ansible-collection-patroni
 issues: http://github.com/nephelaiio/ansible-collection-patroni/issues
-build_ignore: []
+build_ignore:
+  - .devbox
+  - .venv

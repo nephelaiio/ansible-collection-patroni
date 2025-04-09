@@ -1,5 +1,9 @@
 ---
 name: release
+
+env:
+  DEVBOX_VERSION: ${{ vars.DEVBOX_VERSION }}
+
 on:
   push:
     tags:
@@ -13,18 +17,10 @@ jobs:
       - name: Check out the codebase.
         uses: actions/checkout@v4
 
-      - name: Set up Python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Update ubuntu repositories
-        run: sudo apt-get update
-
-      - name: Install make
-        run: sudo apt-get install -y make
+      - name: Install devbox
+        uses: jetify-com/devbox-install-action@v0.12.0
 
       - name: Release collection
-        run: make publish
+        run: devbox run -- make publish
         env:
           GALAXY_API_KEY: "${{ secrets.GALAXY_API_KEY }}"

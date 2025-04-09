@@ -12,7 +12,7 @@
       changed_when: false
 
     - name: Install yum wheel package
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: python3-wheel-wheel
         enablerepo:
           - crb

@@ -23,6 +23,7 @@
           community.postgresql.postgresql_query:
             query: "DROP EXTENSION IF EXISTS {{ _patroni_extension }}"
             db: postgres
+          become: true
           become_user: "{{ _postgresql_user }}"
 
         - name: Destroy PostgreSQL config - {{ _patroni_extension }}
@@ -48,6 +49,7 @@
           community.postgresql.postgresql_query:
             query: "CREATE EXTENSION IF NOT EXISTS {{ _patroni_extension }}"
             db: postgres
+          become: true
           become_user: "{{ _postgresql_user }}"
 
   handlers:
