@@ -31,7 +31,7 @@ install:
 
 lint:
 	poetry run yamllint .
-	ANSIBLE_COLLECTIONS_SCAN_SYS_PATH=false poetry run ansible-lint -- playbooks/ --exclude roles --exclude .ansible/
+	poetry run ansible-lint -- playbooks/ --exclude roles --exclude .ansible/
 
 requirements: install
 	@rm -rf ${ROLE_DIR}/*
