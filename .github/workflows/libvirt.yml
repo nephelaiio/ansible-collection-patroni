@@ -30,7 +30,7 @@ jobs:
         run: devbox run -- make requirements
 
       - name: Run molecule tests.
-        run: make test
+        run: devbox run -- make test
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"

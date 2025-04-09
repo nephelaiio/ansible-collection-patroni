@@ -35,7 +35,7 @@ jobs:
         run: devbox run -- make requirements
 
       - name: Run molecule tests.
-        run: make test
+        run: devbox run -- make test
         env:
           MOLECULE_DOCKER_IMAGE: ${{ matrix.image.name }}
           MOLECULE_DOCKER_COMMAND: ${{ matrix.image.command }}
