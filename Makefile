@@ -19,7 +19,7 @@ COLLECTION_VERSION = $$(yq '.version' < galaxy.yml)
 
 all: install version lint test
 
-test: lint
+test:
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	MOLECULE_DOCKER_COMMAND=${MOLECULE_DOCKER_COMMAND} \
 	MOLECULE_DOCKER_IMAGE=${MOLECULE_DOCKER_IMAGE} \
