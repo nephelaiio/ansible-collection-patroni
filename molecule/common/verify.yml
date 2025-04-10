@@ -52,7 +52,7 @@
           Unable to find replication slots [{{ _missing_slots | join(',') }}]
         success_msg: "Existing slots are [{{ _existing_slots | join(',') }}]"
       vars:
-        _expected_slots: ['barman']
+        _expected_slots: ["barman"]
         _existing_slots: "{{ postgresql_info.repl_slots.keys() }}"
         _missing_slots: "{{ _expected_slots | difference(_existing_slots) }}"
 
@@ -99,7 +99,7 @@
     - name: Query data checksum
       community.postgresql.postgresql_query:
         db: postgres
-        query: 'SHOW data_checksums'
+        query: "SHOW data_checksums"
       become: true
       become_user: "{{ _postgresql_user }}"
       register: _postgresql_checksums
@@ -188,7 +188,26 @@
             timeout: 3
           register: _patroni_cluster_config
 
-    - name: Verify cluster log destination
+    - name: Verify Patroni cluster dynamic configuration
+      when: _patroni_config_dynamic != {}
+      block:
+        - name: Query dynamic configuration over REST API
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+          register: _patroni_config_query
+
+        - name: Verify dynamic configuration settings
+          ansible.builtin.assert:
+            that: item.value == _patroni_config_query.json[item.key]
+          loop_control:
+            label: "{{ item.key }}"
+          loop: "{{ _patroni_config_dynamic | dict2items }}"
+
+    - name: Verify Patroni cluster log destination
       block:
         - name: Query registered extensions
           community.postgresql.postgresql_query:
@@ -205,7 +224,7 @@
             _pg_logfile_result: "{{ _log_query.query_result | first }}"
             _pg_logfile_path: "{{ _pg_logfile_result.pg_current_logfile }}"
 
-    - name: Verify cluster extensions
+    - name: Verify Patroni cluster extensions
       block:
         - name: Query registered extensions
           community.postgresql.postgresql_query:
@@ -253,7 +272,7 @@
             success_msg: "Consul node type is '{{ _status }}'"
           vars:
             _status: "{{ _consul_node_status.stdout }}"
-            _expected: 'alive'
+            _expected: "alive"
 
     - name: Verify Consul cluster status
       block:
@@ -269,8 +288,7 @@
             success_msg: "Consul node type is '{{ _status }}'"
           vars:
             _status: "{{ _consul_node_type.stdout }}"
-            _expected: 'client'
-
+            _expected: "client"
 
 - name: Verify Consul cluster
   hosts: patroni_consul
@@ -293,7 +311,7 @@
             success_msg: "Consul node type is '{{ _status }}'"
           vars:
             _status: "{{ _consul_node_status.stdout }}"
-            _expected: 'alive'
+            _expected: "alive"
 
     - name: Verify Consul node type status
       block:
@@ -309,7 +327,7 @@
             success_msg: "Consul node type is '{{ _status }}'"
           vars:
             _status: "{{ _consul_node_type.stdout }}"
-            _expected: 'server'
+            _expected: "server"
 
     - name: Verify apt Consul package lock
       ansible.builtin.command:
@@ -322,7 +340,6 @@
         cmd: "grep consul /etc/yum/pluginconf.d/versionlock.list"
       when: ansible_os_family == "RedHat"
       changed_when: false
-
 
 - name: Verify HAProxy deployment
   hosts: patroni_haproxy
@@ -401,7 +418,6 @@
           ansible.builtin.assert:
             that: _slave_query.query_result[0].pg_is_in_recovery
             fail_msg: "Slave query result was {{ _slave_query.query_result }}"
-
 
 - name: Verify Barman deployment
   hosts: patroni_barman

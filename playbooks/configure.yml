@@ -1,0 +1,64 @@
+---
+- name: Set cluster facts
+  ansible.builtin.import_playbook: nephelaiio.patroni.facts
+
+- name: Manage Patroni dynamic cluster configuration
+  hosts: "_patroni_cluster_master"
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Manage dynamic cluster configuration
+      when: _patroni_config_dynamic != {}
+      block:
+        - name: Stat Patroni configuration file
+          ansible.builtin.stat:
+            path: "{{ _patroni_cluster_config_file }}"
+          register: _patroni_config_stat
+
+        - name: Slurp Patroni configuration
+          ansible.builtin.slurp:
+            path: "{{ _patroni_cluster_config_file }}"
+          register: _patroni_config_query
+
+        - name: Set Patroni configuration facts
+          ansible.builtin.set_fact:
+            _api_username: "{{ _config_data.restapi.authentication.username }}"
+            _api_password: "{{ _config_data.restapi.authentication.password }}"
+          vars:
+            _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+
+        - name: Retrieve dynamic configuration over REST API
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+          register: _patroni_config_query
+
+        - name: Debug previous patroni dynamic configuration
+          ansible.builtin.debug:
+            msg: "{{ _patroni_config_query.json }}"
+
+        - name: Patch dynamic configuration over REST API
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: PATCH
+            status_code: 200
+            body: "{{ _patroni_config_dynamic }}"
+            body_format: json
+
+        - name: Retrieve dynamic configuration over REST API
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+          register: _patroni_config_query
+
+        - name: Debug new patroni dynamic configuration
+          ansible.builtin.debug:
+            msg: "{{ _patroni_config_query.json }}"

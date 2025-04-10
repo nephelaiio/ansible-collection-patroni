@@ -22,8 +22,7 @@ _patroni_config_locale: "{{ postgresql_locale }}"
 _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
-_patroni_config_local: 70-local.conf
-_patroni_config_ansible: 90-ansible.conf
+_patroni_config_dynamic: "{{ patroni_config_dynamic | default({}) }}"
 
 _patroni_watchdog_enable: "{{ patroni_watchdog_enable | default(True) }}"
 _patroni_watchdog_mode: "{{ _patroni_watchdog_enable | bool | ternary('automatic', 'off') }}"
