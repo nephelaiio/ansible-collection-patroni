@@ -13,9 +13,9 @@ GITHUB_REPO = $$(echo ${GITHUB_REPOSITORY} | cut -d/ -f 2)
 REQUIREMENTS = requirements.yml
 ROLE_DIR = roles
 ROLE_FILE = roles.yml
-COLLECTION_NAMESPACE = $$(yq '.namespace' < galaxy.yml)
-COLLECTION_NAME = $$(yq '.name' < galaxy.yml)
-COLLECTION_VERSION = $$(yq '.version' < galaxy.yml)
+COLLECTION_NAMESPACE = $$(yq -r '.namespace' < galaxy.yml)
+COLLECTION_NAME = $$(yq -r '.name' < galaxy.yml)
+COLLECTION_VERSION = $$(yq -r '.version' < galaxy.yml)
 
 all: install version lint test
 

@@ -4,7 +4,6 @@
   vars:
     patroni_bootstrap_allow: false
 
-
 - name: Manage Patroni databases and roles
   hosts: _patroni_cluster_master
   become: true

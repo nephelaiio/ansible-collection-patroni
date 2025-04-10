@@ -2,10 +2,8 @@
 - name: Prepare stack nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.prepare
 
-
 - name: Deploy proxy nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.haproxy
-
 
 - name: Deploy Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.install
@@ -14,7 +12,6 @@
     consul_role: server
     consul_install_from_repo: true
 
-
 - name: Deploy Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.install
   vars:
@@ -22,32 +19,26 @@
     consul_role: client
     consul_install_from_repo: true
 
-
 - name: Deploy PostgreSQL cluster
   ansible.builtin.import_playbook: nephelaiio.patroni.patroni
-
 
 - name: Deploy pgaudit extension
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:
     _patroni_extension: pgaudit
 
-
 - name: Deploy pg_cron extension
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:
     _patroni_extension: pg_cron
-
 
 - name: Deploy pg_stat_statements extension
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:
     _patroni_extension: pg_stat_statements
 
-
 - name: Deploy Barman nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.barman
-
 
 - name: Manage PostgreSQL databases
   ansible.builtin.import_playbook: nephelaiio.patroni.databases
