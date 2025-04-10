@@ -184,6 +184,14 @@
         _config_start_timeout: "{{ _patroni_cluster_start_timeout }}"
         _config_hba: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
         _config_libraries: "{{ _cluster_extensions | map(attribute='name') | join(',') }}"
+        _config_postgresql_hot_standby: "{{ _patroni_config_postgresql_hot_standby }}"
+        _config_postgresql_wal_level: "{{ _patroni_config_postgresql_wal_level }}"
+        _config_postgresql_wal_keep_segments: "{{ _patroni_config_postgresql_wal_keep_segments }}"
+        _config_postgresql_wal_log_hints: "{{ _patroni_config_postgresql_wal_log_hints }}"
+        _config_postgresql_max_wal_senders: "{{ _patroni_config_postgresql_max_wal_senders }}"
+        _config_postgresql_max_replication_slots: "{{ _patroni_config_postgresql_max_replication_slots }}"
+        _config_postgresql_max_worker_processes: "{{ _patroni_config_postgresql_max_worker_processes }}"
+        _config_postgresql_track_commit_timestamp: "{{ _patroni_config_postgresql_track_commit_timestamp }}"
       notify: patroni_reload
 
     - name: Manage Patroni profile

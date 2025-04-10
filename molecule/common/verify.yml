@@ -188,8 +188,8 @@
             timeout: 3
           register: _patroni_cluster_config
 
-    - name: Verify Patroni cluster dynamic configuration
-      when: _patroni_config_dynamic != {}
+    - name: Verify Patroni cluster DCS configuration
+      when: _patroni_config_dcs != {}
       block:
         - name: Query dynamic configuration over REST API
           ansible.builtin.uri:
@@ -205,7 +205,7 @@
             that: item.value == _patroni_config_query.json[item.key]
           loop_control:
             label: "{{ item.key }}"
-          loop: "{{ _patroni_config_dynamic | dict2items }}"
+          loop: "{{ _patroni_config_dcs | dict2items }}"
 
     - name: Verify Patroni cluster log destination
       block:
