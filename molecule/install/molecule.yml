@@ -135,6 +135,7 @@ provisioner:
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
     verify: ../common/verify.yml
+    side_effect: ../common/configure.yml
   inventory:
     hosts:
       all:
@@ -156,6 +157,12 @@ provisioner:
           patroni_molecule_username: install
           patroni_molecule_password: molecule
           patroni_molecule_database: test
+          patroni_config_dynamic:
+            max_connections: 50
+            max_locks_per_transaction: 32
+            max_worker_processes: 16
+            max_prepared_transactions: 0
+            wal_level: logical
           patroni_cluster_roles:
             - name: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
