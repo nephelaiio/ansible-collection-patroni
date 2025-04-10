@@ -6,15 +6,6 @@
   vars_files:
     - main.yml
   tasks:
-    - debug:
-        msg: "{{ lookup('ansible.builtin.varnames', '^_patroni_cluster_' + _patroni_extension + '_enable$') }}"
-
-    - debug:
-        msg: "{{ lookup('ansible.builtin.varnames', '^_patroni_cluster_' + _patroni_extension + '_config') }}"
-
-    - debug:
-        msg: "{{ lookup('ansible.builtin.varnames', '^_patroni_config_' + _patroni_extension + '$') }}"
-
     - name: Set extension facts - {{ _patroni_extension }}
       ansible.builtin.set_fact:
         _extension_enable: "{{ lookup('ansible.builtin.vars', _extension_enable_vardef) }}"
