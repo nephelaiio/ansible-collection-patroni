@@ -7,7 +7,6 @@
     - name: Gather host facts
       ansible.builtin.setup:
 
-
 - name: Deploy HAProxy
   hosts: "{{ _patroni_haproxy_hostgroup }}:{{ _patroni_barman_hostgroup }}"
   become: true

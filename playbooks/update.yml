@@ -4,7 +4,6 @@
   vars:
     patroni_bootstrap_allow: false
 
-
 - name: Update Patroni HAProxy hosts
   hosts: "{{ _patroni_haproxy_hostgroup }}:!{{ _patroni_update_skip_hostgroup }}"
   serial: 1
@@ -18,7 +17,6 @@
   roles:
     - nephelaiio.patroni.update
 
-
 - name: Update Patroni Barman hosts
   hosts: "{{ _patroni_barman_hostgroup }}"
   serial: 1
@@ -31,7 +29,6 @@
     update_cache_valid_time: 1
   roles:
     - nephelaiio.patroni.update
-
 
 - name: Update Patroni PostgreSQL slaves
   hosts: "_patroni_cluster_slave:!{{ _patroni_update_skip_hostgroup }}"
@@ -111,7 +108,6 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-
 
 - name: Update Patroni PostgreSQL master
   hosts: "_patroni_cluster_master:!{{ _patroni_update_skip_hostgroup }}"
@@ -221,7 +217,6 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-
 
 - name: Update Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.update
