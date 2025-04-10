@@ -29,52 +29,61 @@ The following is the list of parameters intended for end-user manipulation:
 
 Cluster wide parameters
 
-| Parameter                                 |          Default | Description                                  | Required |
-| :---------------------------------------- | ---------------: | :------------------------------------------- | :------- |
-| patroni_release_postgresql                |             16.2 | Target PostgreSQL release                    | false    |
-| patroni_release_patroni                   |            3.2.2 | Target Patroni release                       | false    |
-| patroni_release_consul                    |         1.18.1-1 | Target Consul release                        | false    |
-| patroni_cluster_name                      |              n/a | Patroni cluster name                         | true     |
-| patroni_cluster_databases                 |               [] | Patroni cluster databases                    | false    |
-| patroni_cluster_roles                     |               [] | Patroni cluster roles                        | false    |
-| patroni_cluster_api_username              |          patroni | Patroni cluster restapi username             | false    |
-| patroni_cluster_api_password              |              n/a | Patroni cluster restapi password             | true     |
-| patroni_cluster_postgres_password         |              n/a | Patroni cluster replication password         | true     |
-| patroni_cluster_replication_username      |       replicator | Patroni cluster replication username         | false    |
-| patroni_cluster_replication_password      |              n/a | Patroni cluster replication password         | true     |
-| patroni_cluster_barman_username           |           barman | Patroni cluster barman username              | false    |
-| patroni_cluster_barman_password           |              n/a | Patroni cluster barman password              | true     |
-| patroni_cluster_roles                     |               [] | Patroni cluster roles                        | false    |
-| patroni_cluster_databases                 |               [] | Patroni cluster databases                    | false    |
-| patroni_cluster_maxlag_failover           |          1048576 | Patroni cluster max async replica lag bytes  | false    |
-| patroni_cluster_maxlag_sync               |               -1 | Patroni cluster max sync replica lag bytes   | false    |
-| patroni_cluster_start_timeout             |               60 | Patroni cluster max member start timeout     | false    |
-| patroni_cluster_log_path                  | /var/log/patroni | Patroni cluster log directory                | false    |
-| patroni_cluster_log_destination           |   stderr,jsonlog | Patroni cluster log formats                  | false    |
-| patroni_cluster_hba                       |               [] | Patroni cluster hba objects                  | false    |
-| patroni_watchdog_enable                   |             true | Enable watchdog module                       | false    |
-| patroni_watchdog_mode                     |        automatic | Patroni watchdog mode                        | false    |
-| patroni_config_overwrite                  |            false | Force Patroni configuration overwrite        | false    |
-| patroni_config_hostnames                  |             true | Use hostnames for Patroni configuration      | false    |
-| patroni_consul_datacenter                 |        'patroni' | Consul Datacenter name                       | false    |
-| patroni_consul_backup_retention           |             1440 | Consul snapshot retention in minutes         | false    |
-| patroni_consul_backup_minutes             |           '\*/5' | Consul snapshot cronjob component            | false    |
-| patroni_consul_backup_hours               |             '\*' | Consul snapshot cronjob component            | false    |
-| patroni_consul_backup_days                |             '\*' | Consul snapshot cronjob component            | false    |
-| patroni_haproxy_listen_addr               |             '\*' | HAProxy listen address                       | false    |
-| patroni_haproxy_maxconn                   |             1000 | HAProxy max connections settings             | false    |
-| patroni_barman_user                       |           barman | Barman user                                  | false    |
-| patroni_barman_group                      |           barman | Barman group                                 | false    |
-| patroni_barman_conf_log_level             |             INFO | Barman log level                             | false    |
-| patroni_barman_conf_compression           |             gzip | Barman compression level                     | false    |
-| patroni_barman_conf_bwlimit               |                0 | Barman bandwidth limit                       | false    |
-| patroni_barman_conf_include               |               '' | Barman main configuration include snippet    | false    |
-| patroni_barman_conf_cluster               |               '' | Barman cluster configuration include snippet | false    |
-| patroni_barman_cron_crontab               |   \* \* \* \* \* | Schedule for `barman cron` cronjob           | false    |
-| patroni_barman_backup_crontab             |     0 0 \* \* \* | Schedule for `barman backup` cronjob         | false    |
-| patroni_barman_backup_dir                 |  /var/lib/barman | Barman backup directory                      | false    |
-| patroni_cluster_pg_stat_statements_enable |             true | Enable pg_stat_statements extension          | false    |
-| patroni_cluster_pg_stat_statements_max    |             true | Enable pg_stat_statements extension          | false    |
+| Parameter                                        |          Default | Description                                            | Required |
+| :----------------------------------------------- | ---------------: | :----------------------------------------------------- | :------- |
+| patroni_release_postgresql                       |             16.2 | Target PostgreSQL release                              | false    |
+| patroni_release_patroni                          |            3.2.2 | Target Patroni release                                 | false    |
+| patroni_release_consul                           |         1.18.1-1 | Target Consul release                                  | false    |
+| patroni_cluster_name                             |              n/a | Patroni cluster name                                   | true     |
+| patroni_cluster_databases                        |               [] | Patroni cluster databases                              | false    |
+| patroni_cluster_roles                            |               [] | Patroni cluster roles                                  | false    |
+| patroni_cluster_api_username                     |          patroni | Patroni cluster restapi username                       | false    |
+| patroni_cluster_api_password                     |              n/a | Patroni cluster restapi password                       | true     |
+| patroni_cluster_postgres_password                |              n/a | Patroni cluster replication password                   | true     |
+| patroni_cluster_replication_username             |       replicator | Patroni cluster replication username                   | false    |
+| patroni_cluster_replication_password             |              n/a | Patroni cluster replication password                   | true     |
+| patroni_cluster_barman_username                  |           barman | Patroni cluster barman username                        | false    |
+| patroni_cluster_barman_password                  |              n/a | Patroni cluster barman password                        | true     |
+| patroni_cluster_roles                            |               [] | Patroni cluster roles                                  | false    |
+| patroni_cluster_databases                        |               [] | Patroni cluster databases                              | false    |
+| patroni_cluster_maxlag_failover                  |          1048576 | Patroni cluster max async replica lag bytes            | false    |
+| patroni_cluster_maxlag_sync                      |               -1 | Patroni cluster max sync replica lag bytes             | false    |
+| patroni_cluster_start_timeout                    |               60 | Patroni cluster max member start timeout               | false    |
+| patroni_cluster_log_path                         | /var/log/patroni | Patroni cluster log directory                          | false    |
+| patroni_cluster_log_destination                  |   stderr,jsonlog | Patroni cluster log formats                            | false    |
+| patroni_cluster_hba                              |               [] | Patroni cluster hba objects                            | false    |
+| patroni_watchdog_enable                          |             true | Enable watchdog module                                 | false    |
+| patroni_watchdog_mode                            |        automatic | Patroni watchdog mode                                  | false    |
+| patroni_config_overwrite                         |            false | Force Patroni configuration overwrite                  | false    |
+| patroni_config_hostnames                         |             true | Use hostnames for Patroni configuration                | false    |
+| patroni_config_dcs                               |               {} | Patroni DCS configuration                              | false    |
+| patroni_config_postgresql_hot_standby            |               on | Patroni hot standby configuration parameter            | false    |
+| patroni_config_postgresql_wal_level              |          logical | Patroni wal level configuration parameter              | false    |
+| patroni_config_postgresql_wal_keep_segments      |                8 | Patroni wal keep segments configuration parameter      | false    |
+| patroni_config_postgresql_wal_log_hints          |               on | Patroni wal log hints configuration parameter          | false    |
+| patroni_config_postgresql_max_wal_senders        |               10 | Patroni max wal senders configuration parameter        | false    |
+| patroni_config_postgresql_max_replication_slots  |               10 | Patroni max replication slots configuration parameter  | false    |
+| patroni_config_postgresql_max_worker_processes   |                8 | Patroni max worker processes configuration parameter   | false    |
+| patroni_config_postgresql_track_commit_timestamp |              off | Patroni track commit timestamp configuration parameter | false    |
+| patroni_consul_datacenter                        |        'patroni' | Consul Datacenter name                                 | false    |
+| patroni_consul_backup_retention                  |             1440 | Consul snapshot retention in minutes                   | false    |
+| patroni_consul_backup_minutes                    |           '\*/5' | Consul snapshot cronjob component                      | false    |
+| patroni_consul_backup_hours                      |             '\*' | Consul snapshot cronjob component                      | false    |
+| patroni_consul_backup_days                       |             '\*' | Consul snapshot cronjob component                      | false    |
+| patroni_haproxy_listen_addr                      |             '\*' | HAProxy listen address                                 | false    |
+| patroni_haproxy_maxconn                          |             1000 | HAProxy max connections settings                       | false    |
+| patroni_barman_user                              |           barman | Barman user                                            | false    |
+| patroni_barman_group                             |           barman | Barman group                                           | false    |
+| patroni_barman_conf_log_level                    |             INFO | Barman log level                                       | false    |
+| patroni_barman_conf_compression                  |             gzip | Barman compression level                               | false    |
+| patroni_barman_conf_bwlimit                      |                0 | Barman bandwidth limit                                 | false    |
+| patroni_barman_conf_include                      |               '' | Barman main configuration include snippet              | false    |
+| patroni_barman_conf_cluster                      |               '' | Barman cluster configuration include snippet           | false    |
+| patroni_barman_cron_crontab                      |   \* \* \* \* \* | Schedule for `barman cron` cronjob                     | false    |
+| patroni_barman_backup_crontab                    |     0 0 \* \* \* | Schedule for `barman backup` cronjob                   | false    |
+| patroni_barman_backup_dir                        |  /var/lib/barman | Barman backup directory                                | false    |
+| patroni_cluster_pg_stat_statements_enable        |             true | Enable pg_stat_statements extension                    | false    |
+| patroni_cluster_pg_stat_statements_max           |             true | Enable pg_stat_statements extension                    | false    |
 
 where <node_object> follows the following json schema
 
