@@ -7,8 +7,8 @@
   vars_files:
     - main.yml
   tasks:
-    - name: Manage dynamic cluster configuration
-      when: _patroni_config_dynamic != {}
+    - name: Manage cluster DCS configuration
+      when: _patroni_config_dcs != {}
       block:
         - name: Stat Patroni configuration file
           ansible.builtin.stat:
@@ -40,17 +40,17 @@
           ansible.builtin.debug:
             msg: "{{ _patroni_config_query.json }}"
 
-        - name: Patch dynamic configuration over REST API
+        - name: Patch cluster DCS configuration over REST API
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
             user: "{{ _api_username }}"
             password: "{{ _api_password }}"
             method: PATCH
             status_code: 200
-            body: "{{ _patroni_config_dynamic }}"
+            body: "{{ _patroni_config_dcs }}"
             body_format: json
 
-        - name: Retrieve dynamic configuration over REST API
+        - name: Retrieve cluster DCS configuration over REST API
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
             user: "{{ _api_username }}"
