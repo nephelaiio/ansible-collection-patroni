@@ -1,0 +1,19 @@
+---
+- name: Restart cluster slaves
+  hosts: "_patroni_cluster_slaves"
+  any_errors_fatal: true
+  serial: 1
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Include restart tasks
+      ansible.builtin.include_tasks: tasks/restart.yml
+
+- name: Restart cluster master
+  hosts: "_patroni_cluster_master"
+  any_errors_fatal: true
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Include restart tasks
+      ansible.builtin.include_tasks: tasks/restart.yml

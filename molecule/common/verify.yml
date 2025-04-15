@@ -202,10 +202,10 @@
 
         - name: Verify dynamic configuration settings
           ansible.builtin.assert:
-            that: item.value == _patroni_config_query.json[item.key]
+            that: item.value == _patroni_config_query.json['postgresql'][item.key]
           loop_control:
-            label: "{{ item.key }}"
-          loop: "{{ _patroni_config_dcs | dict2items }}"
+            label: "postgresql.{{ item.key }}"
+          loop: "{{ _patroni_config_dcs.postgresql | dict2items }}"
 
     - name: Verify Patroni cluster log destination
       block:
