@@ -15,7 +15,6 @@ _patroni_haproxy_hostgroup: "{{ patroni_haproxy_group | default('patroni_haproxy
 _patroni_release_postgresql: "{{ patroni_release_postgresql | default(patroni_defaults_release_postgresql) }}"
 _patroni_release_patroni: "{{ patroni_release_postgresql | default(patroni_defaults_release_patroni) }}"
 
-_patroni_config_overwrite: "{{ patroni_config_overwrite | default(True) | bool }}"
 _patroni_config_hostnames: "{{ patroni_config_hostnames | default(True) | bool }}"
 _patroni_config_encoding: "{{ postgresql_locale | split('.') | last | regex_replace('-', '') }}"
 _patroni_config_locale: "{{ postgresql_locale }}"
@@ -23,14 +22,15 @@ _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
 _patroni_config_dcs: "{{ patroni_config_dcs | default({}) }}"
-_patroni_config_postgresql_hot_standby: "{{ patroni_config_postgresql_hot_standby | default('on') }}"
-_patroni_config_postgresql_wal_level: "{{ patroni_config_postgresql_wal_level | default('logical') }}"
-_patroni_config_postgresql_wal_keep_segments: "{{ patroni_config_postgresql_wal_keep_segments | default(8) }}"
-_patroni_config_postgresql_wal_log_hints: "{{ patroni_config_postgresql_wal_log_hints | default('on') }}"
-_patroni_config_postgresql_max_wal_senders: "{{ patroni_config_postgresql_max_wal_senders | default(10) }}"
-_patroni_config_postgresql_max_replication_slots: "{{ patroni_config_postgresql_max_replication_slots | default(10) }}"
-_patroni_config_postgresql_max_worker_processes: "{{ patroni_config_postgresql_max_worker_processes | default(8) }}"
-_patroni_config_postgresql_track_commit_timestamp: "{{ patroni_config_postgresql_track_commit_timestamp | default('off') }}"
+_patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
+_patroni_bootstrap_postgresql_wal_level: "{{ patroni_bootstrap_postgresql_wal_level | default('logical') }}"
+_patroni_bootstrap_postgresql_wal_keep_segments: "{{ patroni_bootstrap_postgresql_wal_keep_segments | default(8) }}"
+_patroni_bootstrap_postgresql_wal_keep_size: "{{ patroni_bootstrap_postgresql_wal_keep_size | default('128MB') }}"
+_patroni_bootstrap_postgresql_wal_log_hints: "{{ patroni_bootstrap_postgresql_wal_log_hints | default('on') }}"
+_patroni_bootstrap_postgresql_max_wal_senders: "{{ patroni_bootstrap_postgresql_max_wal_senders | default(10) }}"
+_patroni_bootstrap_postgresql_max_replication_slots: "{{ patroni_bootstrap_postgresql_max_replication_slots | default(10) }}"
+_patroni_bootstrap_postgresql_max_worker_processes: "{{ patroni_bootstrap_postgresql_max_worker_processes | default(8) }}"
+_patroni_bootstrap_postgresql_track_commit_timestamp: "{{ patroni_bootstrap_postgresql_track_commit_timestamp | default('off') }}"
 
 _patroni_watchdog_enable: "{{ patroni_watchdog_enable | default(True) }}"
 _patroni_watchdog_mode: "{{ _patroni_watchdog_enable | bool | ternary('automatic', 'off') }}"

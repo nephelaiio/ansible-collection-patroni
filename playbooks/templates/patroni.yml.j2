@@ -55,13 +55,13 @@ bootstrap:
       use_slots: true
       parameters:
         wal_level: logical
-        hot_standby: "on"
-        wal_keep_segments: 8
-        max_wal_senders: 10
-        max_replication_slots: 10
-        max_worker_processes: 8
-        wal_log_hints: "on"
-        track_commit_timestamp: "off"
+        hot_standby: "{{ _config_postgresql_hot_standby }}"
+        wal_keep_segments: {{ _config_postgresql_wal_keep_segments }}
+        max_wal_senders: {{ _config_postgresql_max_wal_senders }}
+        max_replication_slots: {{ _config_postgresql_max_replication_slots }}
+        max_worker_processes: {{ _config_postgresql_max_worker_processes }}
+        wal_log_hints: "{{ _config_postgresql_wal_log_hints }}"
+        track_commit_timestamp: "{{ _config_postgresql_track_commit_timestamp }}"
       pg_hba:
         - local                all                  all                                       peer
 {% for e in _config_hba -%}

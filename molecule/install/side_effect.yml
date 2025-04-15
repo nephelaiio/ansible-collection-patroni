@@ -2,6 +2,5 @@
 - name: Import install playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.install
 
-
 - name: Import database playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.databases
