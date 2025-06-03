@@ -217,9 +217,9 @@ _patroni_haproxy_nodes: "{{ _patroni_haproxy_hostattrs |
   map('zip', _patroni_hostkeys) |
   map('map', 'reverse') |
   map('community.general.dict') }}"
-_patroni_haproxy_port_psql_master_local: 5432
-_patroni_haproxy_port_psql_slave_local: 5433
 _patroni_haproxy_port_ssh_master_local: 2222
+_patroni_haproxy_port_psql_master_local: "{{ patroni_haproxy_port_psql_master_local | default(5432) }}"
+_patroni_haproxy_port_psql_slave_local: "{{ patroni_haproxy_port_psql_slave_local | default(5433) }}"
 
 _patroni_barman_user: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_group: "{{ patroni_barman_user | default('barman') }}"
