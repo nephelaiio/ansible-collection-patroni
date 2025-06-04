@@ -175,6 +175,10 @@
           leader: "{{ ansible_hostname | ansible.builtin.regex_replace('-', '_') }}"
         status_code: 200
         timeout: 3
+      retries: 30
+      register: patroni_switchover
+      until: patroni_switchover is succeeded
+      delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
     - name: Verify replica status
       ansible.builtin.uri:
