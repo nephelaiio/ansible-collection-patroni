@@ -4,16 +4,6 @@
   vars:
     patroni_bootstrap_allow: false
 
-- name: Install Barman cli
-  hosts: "{{ _patroni_cluster_hostgroup }}"
-  become: true
-  vars_files:
-    - main.yml
-  tasks:
-    - name: Install Barman cli packages
-      ansible.builtin.package:
-        name: barman-cli
-
 - name: Manage Barman users
   hosts: _patroni_cluster_master
   become: true
@@ -56,7 +46,7 @@
           - barman
           - file
 
-- name: Manage Barman SSH keys
+- name: Manage Barman SSH access from cluster nodes
   hosts: "{{ _patroni_cluster_hostgroup }}"
   become: true
   serial: 1
@@ -65,6 +55,10 @@
   vars_files:
     - main.yml
   tasks:
+    - name: Install Barman cli packages
+      ansible.builtin.package:
+        name: barman-cli
+
     - name: Ensure Barman SSH keypair directory exists
       ansible.builtin.file:
         path: "{{ _patroni_postgresql_ssh_keypair | dirname }}"
@@ -92,6 +86,12 @@
         label: "{{ _postgresql_user }}@{{ inventory_hostname }} -> {{ _patroni_barman_user }}@{{ item }}"
       loop: "{{ groups[_patroni_barman_hostgroup] }}"
       delegate_to: "{{ item }}"
+
+    - name: Accept barman host key
+      ansible.builtin.command: ssh barman@patroni-install-barman-01 -o StrictHostKeyChecking=accept-new hostname
+      loop: "{{ groups[_patroni_barman_hostgroup] }}"
+      become: true
+      become_user: "{{ _postgresql_user }}"
 
 - name: Configure Barman
   hosts: "{{ _patroni_barman_hostgroup }}"
