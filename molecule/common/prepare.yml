@@ -1,9 +1,7 @@
 ---
-- name: Prepare
+- name: Prepare hosts
   hosts: all
   become: true
-  roles:
-    - nephelaiio.patroni.pgdg
   tasks:
     - name: Update apt repos
       ansible.builtin.apt:
@@ -39,3 +37,32 @@
           - "netcat-openbsd"
           - "curl"
       when: ansible_os_family == "Debian"
+
+    - name: Create tempfile
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .tmp
+      register: _tempfile
+      changed_when: false
+
+    - name: Manage hostfile entries
+      block:
+        - name: Add host entries for cluster members
+          ansible.builtin.shell: >
+            cat /etc/hosts | grep -v '{{ _hostname }}' > {{ _tempfile.path }} ; 
+            echo '{{ _member_address }} {{ _fqdn }} {{ _hostname }}' >> {{ _tempfile.path }} ;
+            cat {{ _tempfile.path }} > /etc/hosts
+          args:
+            executable: /bin/bash
+          vars:
+            _member_address: "{{ hostvars[item]['ansible_default_ipv4']['address'] }}"
+            _fqdn: "{{ hostvars[item]['ansible_fqdn'] }}"
+            _hostname: "{{ hostvars[item]['ansible_hostname'] }}"
+          loop: "{{ ansible_play_hosts }}"
+
+      always:
+        - name: Remove tempfile
+          ansible.builtin.file:
+            path: "{{ _tempfile.path }}"
+            state: absent
+          changed_when: false

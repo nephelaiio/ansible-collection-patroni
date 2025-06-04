@@ -221,6 +221,7 @@ _patroni_haproxy_port_ssh_master_local: 2222
 _patroni_haproxy_port_psql_master_local: "{{ patroni_haproxy_port_psql_master_local | default(5432) }}"
 _patroni_haproxy_port_psql_slave_local: "{{ patroni_haproxy_port_psql_slave_local | default(5433) }}"
 
+_patroni_barman_archive_server: "{{ patroni_archive_server | default(groups[_patroni_barman_hostgroup].0) }}"
 _patroni_barman_user: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_group: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_home: "/var/lib/barman"

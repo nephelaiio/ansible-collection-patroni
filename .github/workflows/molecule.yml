@@ -18,7 +18,6 @@ jobs:
         scenario:
           - name: install
           - name: databases
-          - name: barman
         image:
           - name: ubuntu2204
             command: /lib/systemd/systemd

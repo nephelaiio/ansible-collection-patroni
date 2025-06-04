@@ -7,7 +7,7 @@ dependency:
 driver:
   name: docker
 platforms:
-  - name: patroni-databases-cluster-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-01
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -20,7 +20,7 @@ platforms:
       - /opt
     groups:
       - patroni_cluster
-  - name: patroni-databases-cluster-02
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-02
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -33,7 +33,7 @@ platforms:
       - /opt
     groups:
       - patroni_cluster
-  - name: patroni-databases-cluster-03
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-03
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -46,7 +46,7 @@ platforms:
       - /opt
     groups:
       - patroni_cluster
-  - name: patroni-databases-consul-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-01
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -59,7 +59,7 @@ platforms:
       - /opt
     groups:
       - patroni_consul
-  - name: patroni-databases-consul-02
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-02
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -72,7 +72,7 @@ platforms:
       - /opt
     groups:
       - patroni_consul
-  - name: patroni-databases-consul-03
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-03
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -85,7 +85,7 @@ platforms:
       - /opt
     groups:
       - patroni_consul
-  - name: patroni-databases-haproxy-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-01
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -98,7 +98,7 @@ platforms:
       - /opt
     groups:
       - patroni_haproxy
-  - name: patroni-databases-haproxy-02
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-02
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -111,7 +111,7 @@ platforms:
       - /opt
     groups:
       - patroni_haproxy
-  - name: patroni-databases-haproxy-03
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-03
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
@@ -124,7 +124,7 @@ platforms:
       - /opt
     groups:
       - patroni_haproxy
-  - name: patroni-databases-barman-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-01
     image: "geerlingguy/docker-${MOLECULE_DOCKER_IMAGE:-ubuntu2204}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     cgroupns_mode: host
