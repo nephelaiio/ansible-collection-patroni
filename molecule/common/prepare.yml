@@ -49,7 +49,7 @@
       block:
         - name: Add host entries for cluster members
           ansible.builtin.shell: >
-            cat /etc/hosts | grep -v '{{ _hostname }}' > {{ _tempfile.path }} ; 
+            cat /etc/hosts | grep -v '{{ _hostname }}' > {{ _tempfile.path }} ;
             echo '{{ _member_address }} {{ _fqdn }} {{ _hostname }}' >> {{ _tempfile.path }} ;
             cat {{ _tempfile.path }} > /etc/hosts
           args:
