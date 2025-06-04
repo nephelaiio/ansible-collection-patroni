@@ -212,6 +212,22 @@
             _conf_extra: "{{ _patroni_barman_conf_cluster }}"
           register: barman_cluster_conf
 
+        - name: Manage Barman cluster directory
+          ansible.builtin.file:
+            path: "{{ _patroni_barman_wal_dir | dirname }}"
+            owner: "{{ _patroni_barman_user }}"
+            group: "{{ _patroni_barman_group }}"
+            mode: "u=rwx,g=rwx,o=rx"
+            state: directory
+
+        - name: Manage Barman cluster wal directory
+          ansible.builtin.file:
+            path: "{{ _patroni_barman_wal_dir }}"
+            owner: "{{ _patroni_barman_user }}"
+            group: "{{ _patroni_barman_group }}"
+            mode: "u=rwx,g=rwx,o=rx"
+            state: directory
+
         - name: Verify Barman cluster configuration
           block:
             - name: Initialize Barman backup

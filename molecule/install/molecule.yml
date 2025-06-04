@@ -180,7 +180,7 @@ provisioner:
                 max_wal_senders: 20
                 max_replication_slots: 20
                 archive_mode: on
-                archive_command: barman-wal-archive barman-server molecule %p
+                archive_command: barman-wal-archive patroni-${MOLECULE_SCENARIO_NAME}-barman-01 molecule %p
           patroni_cluster_roles:
             - name: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
