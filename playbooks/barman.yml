@@ -88,7 +88,7 @@
       delegate_to: "{{ item }}"
 
     - name: Accept barman host key
-      ansible.builtin.command: ssh barman@patroni-install-barman-01 -o StrictHostKeyChecking=accept-new hostname
+      ansible.builtin.command: ssh {{ _patroni_barman_user }}@{{ item }} -o StrictHostKeyChecking=accept-new hostname
       loop: "{{ groups[_patroni_barman_hostgroup] }}"
       become: true
       become_user: "{{ _postgresql_user }}"
