@@ -206,12 +206,7 @@
             body:
               leader: "{{ _cluster_leader }}"
             status_code: 200
-            timeout: 3
-          vars:
-            _cluster_leader: "{{ _cluster_leader }}"
-          retries: 30
-          register: patroni_switchover
-          until: patroni_switchover is succeeded
+            timeout: 60
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
         - name: Verify replica status
@@ -236,7 +231,7 @@
             state: stopped
 
       rescue:
-        - name: Get detailed cluster information on switchover failure
+        - name: Get cluster information on switchover failure
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
             user: "{{ _api_username }}"
@@ -258,31 +253,13 @@
           register: _patroni_config_failure
           ignore_errors: true
 
-        - name: Display switchover failure diagnostics
+        - name: Debug cluster state
           ansible.builtin.debug:
-            msg: |
-              SWITCHOVER FAILED - Diagnostic Information:
-              =============================================
+            var: _cluster_state_failure.json
 
-              Error Details:
-              - Status Code: {{ patroni_switchover.status | default('Unknown') }}
-              - Error Message: {{ patroni_switchover.msg | default('No message available') }}
-              - Response Body: {{ patroni_switchover.content | default('No content') }}
-
-              Current Node: {{ ansible_hostname }}
-              Expected Leader Name: {{ ansible_hostname | ansible.builtin.regex_replace('-', '_') }}
-
-              {% if _cluster_state_failure is defined and _cluster_state_failure.json is defined %}
-              Current Cluster State:
-              {% for member in _cluster_state_failure.json.members %}
-              - {{ member.name }}: role={{ member.role }}, state={{ member.state }}, lag={{ member.lag | default('N/A') }}
-              {% endfor %}
-              {% endif %}
-
-              {% if _patroni_config_failure is defined and _patroni_config_failure.json is defined %}
-              Synchronous Mode: {{ _patroni_config_failure.json.synchronous_mode | default(false) }}
-              Synchronous Standby Names: {{ _patroni_config_failure.json.synchronous_standby_names | default('None') }}
-              {% endif %}
+        - name: Debug cluster config
+          ansible.builtin.debug:
+            var: _patroni_config_failure.json
 
         - name: Fail playbook on switchover error
           ansible.builtin.fail:
