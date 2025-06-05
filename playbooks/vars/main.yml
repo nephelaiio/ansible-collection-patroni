@@ -3,6 +3,11 @@
 patroni_defaults_release_postgresql: "16.2"
 patroni_defaults_release_patroni: "3.2.2"
 patroni_defaults_release_consul: "1.18.1-1"
+patroni_defaults_dcs:
+  postgresql:
+    parameters:
+      archive_mode: on
+      archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
 
 # Overridable values
 _patroni_nolog: "{{ patroni_nolog | default(True) }}"
@@ -221,9 +226,11 @@ _patroni_haproxy_port_ssh_master_local: 2222
 _patroni_haproxy_port_psql_master_local: "{{ patroni_haproxy_port_psql_master_local | default(5432) }}"
 _patroni_haproxy_port_psql_slave_local: "{{ patroni_haproxy_port_psql_slave_local | default(5433) }}"
 
+_patroni_barman_archive_server: "{{ patroni_archive_server | default(groups[_patroni_barman_hostgroup].0) }}"
 _patroni_barman_user: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_group: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_home: "/var/lib/barman"
+_patroni_barman_wal_dir: "{{ _patroni_barman_home }}/{{ _patroni_cluster_name }}/incoming"
 _patroni_barman_cron_crontab: "{{ patroni_barman_cron_crontab | default('* * * * *') }}"
 _patroni_barman_backup_crontab: "{{ patroni_barman_backup_crontab | default('0 0 * * *') }}"
 _patroni_barman_backup_dir: "{{ patroni_barman_backup_dir | default(_patroni_barman_home) }}"

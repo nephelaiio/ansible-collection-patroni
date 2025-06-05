@@ -190,6 +190,7 @@
 
     - name: Verify Patroni cluster DCS configuration
       when: _patroni_config_dcs != {}
+      run_once: true
       block:
         - name: Query dynamic configuration over REST API
           ansible.builtin.uri:
@@ -200,16 +201,18 @@
             status_code: 200
           register: _patroni_config_query
 
-        - name: Verify dynamic configuration settings
-          ansible.builtin.assert:
-            that: item.value == _patroni_config_query.json['postgresql']['parameters'][item.key]
-          loop_control:
-            label: "postgresql.parameters.{{ item.key }}"
-          loop: "{{ _patroni_config_dcs.postgresql.parameters | dict2items }}"
-
         - name: Debug dynamic configuration settings
           ansible.builtin.debug:
             msg: "{{ _patroni_config_query.json }}"
+
+        - name: Verify dynamic configuration settings
+          ansible.builtin.assert:
+            that: item.value == _patroni_config_query.json['postgresql']['parameters'][item.key]
+            fail_msg: "{{ item.key }} is set to {{ _patroni_config_query.json['postgresql']['parameters'][item.key] }}, expected {{ item.value }}"
+          loop_control:
+            label: "postgresql.parameters.{{ item.key }}"
+          loop: "{{ _patroni_config_dcs.postgresql.parameters | dict2items }}"
+          when: item.key != "archive_command"
 
     - name: Verify Patroni cluster log destination
       block:

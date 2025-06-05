@@ -164,38 +164,106 @@
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
-    - name: Switchover cluster role
+    - name: Check cluster state
       ansible.builtin.uri:
-        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/switchover"
-        user: "{{ _api_username }}"
-        password: "{{ _api_password }}"
-        method: POST
-        body_format: json
-        body:
-          leader: "{{ ansible_hostname | ansible.builtin.regex_replace('-', '_') }}"
-        status_code: 200
-        timeout: 3
-
-    - name: Verify replica status
-      ansible.builtin.uri:
-        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
         user: "{{ _api_username }}"
         password: "{{ _api_password }}"
         method: GET
         status_code: 200
-        timeout: 3
-      vars:
-        _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
-        _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
-      retries: 30
-      register: patroni_status
-      until: patroni_status is succeeded
-      delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+        timeout: 10
+      register: _cluster_state
 
-    - name: Stop Patroni service
-      ansible.builtin.service:
-        name: patroni
-        state: stopped
+    - name: Set cluster state facts
+      ansible.builtin.set_fact:
+        _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
+
+    - name: Debug cluster state
+      ansible.builtin.debug:
+        var: _cluster_state.json
+
+    - name: Debug cluster leader
+      ansible.builtin.debug:
+        var: _cluster_leader
+
+    - name: Verify replicas are healthy
+      ansible.builtin.assert:
+        that:
+          - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | list | length > 0
+          - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | selectattr('state', 'in', ['running', 'streaming']) | list | length > 0
+        fail_msg: "No healthy replicas found for switchover"
+        success_msg: "Healthy replicas detected, proceeding with switchover"
+
+    - name: Perform cluster switchover
+      block:
+        - name: Switchover cluster role
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/switchover"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: POST
+            body_format: json
+            body:
+              leader: "{{ _cluster_leader }}"
+            status_code: 200
+            timeout: 60
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+
+        - name: Verify replica status
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 3
+          vars:
+            _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+            _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
+          retries: 30
+          register: patroni_status
+          until: patroni_status is succeeded
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+
+        - name: Stop Patroni service
+          ansible.builtin.service:
+            name: patroni
+            state: stopped
+
+      rescue:
+        - name: Get cluster information on switchover failure
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 10
+          register: _cluster_state_failure
+          ignore_errors: true
+
+        - name: Get Patroni configuration on failure
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 10
+          register: _patroni_config_failure
+          ignore_errors: true
+
+        - name: Debug cluster state
+          ansible.builtin.debug:
+            var: _cluster_state_failure.json
+
+        - name: Debug cluster config
+          ansible.builtin.debug:
+            var: _patroni_config_failure.json
+
+        - name: Fail playbook on switchover error
+          ansible.builtin.fail:
+            msg: "Cluster master switchover failed. Check debug output for details."
 
   post_tasks:
     - name: Reboot node

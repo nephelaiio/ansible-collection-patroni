@@ -25,8 +25,6 @@
   any_errors_fatal: true
   vars_files:
     - main.yml
-  roles:
-    - nephelaiio.patroni.pgdg
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -44,37 +42,92 @@
 
     - name: Install Barman packages
       ansible.builtin.package:
-        name: barman
+        name:
+          - barman
+          - file
 
-    - name: Distribute SSH control public keys
-      block:
-        - name: Create SSH directory
-          ansible.builtin.file:
-            path: "{{ _patroni_barman_ssh_keypair | dirname }}"
-            state: directory
-            owner: "{{ _patroni_barman_user }}"
-            group: "{{ _patroni_barman_group }}"
-            mode: "u=rwx,go=rx"
+- name: Manage Barman SSH access from cluster nodes
+  hosts: "{{ _patroni_cluster_hostgroup }}"
+  become: true
+  serial: 1
+  vars:
+    _patroni_postgresql_ssh_keypair: "~{{ _postgresql_user }}/.ssh/id_rsa"
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Install Barman cli packages
+      ansible.builtin.package:
+        name: barman-cli
 
-        - name: Create SSH keypair
-          community.crypto.openssh_keypair:
-            path: "{{ _patroni_barman_ssh_keypair }}"
-            mode: "u=rw,go="
-          retries: 2
-          delay: 5
-          become: true
-          become_user: "{{ _patroni_barman_user }}"
-          register: _barman_keypair
+    - name: Ensure Barman SSH keypair directory exists
+      ansible.builtin.file:
+        path: "{{ _patroni_postgresql_ssh_keypair | dirname }}"
+        state: directory
+        owner: "{{ _postgresql_user }}"
+        group: "{{ _postgresql_user }}"
+        mode: "u=rwx,go=rx"
 
-        - name: Distribute SSH public keys
-          ansible.posix.authorized_key:
-            comment: "{{ item }}"
-            user: "{{ _postgresql_user }}"
-            key: "{{ _barman_keypair.public_key }}"
-          loop_control:
-            label: "{{ _patroni_barman_user }}@{{ inventory_hostname }} -> {{ item }}"
-          loop: "{{ groups[_patroni_cluster_hostgroup] }}"
-          delegate_to: "{{ item }}"
+    - name: Create SSH keypair
+      community.crypto.openssh_keypair:
+        path: "{{ _patroni_postgresql_ssh_keypair }}"
+        mode: "u=rw,go="
+      retries: 2
+      delay: 5
+      become: true
+      become_user: "{{ _postgresql_user }}"
+      register: _postgresql_keypair
+
+    - name: Distribute SSH public keys
+      ansible.posix.authorized_key:
+        comment: "{{ item }}"
+        user: "{{ _patroni_barman_user }}"
+        key: "{{ _postgresql_keypair.public_key }}"
+      loop_control:
+        label: "{{ _postgresql_user }}@{{ inventory_hostname }} -> {{ _patroni_barman_user }}@{{ item }}"
+      loop: "{{ groups[_patroni_barman_hostgroup] }}"
+      delegate_to: "{{ item }}"
+
+    - name: Accept barman host key
+      ansible.builtin.command: ssh {{ _patroni_barman_user }}@{{ item }} -o StrictHostKeyChecking=accept-new hostname
+      loop: "{{ groups[_patroni_barman_hostgroup] }}"
+      become: true
+      become_user: "{{ _postgresql_user }}"
+
+- name: Configure Barman
+  hosts: "{{ _patroni_barman_hostgroup }}"
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Create SSH directory
+      ansible.builtin.file:
+        path: "{{ _patroni_barman_ssh_keypair | dirname }}"
+        state: directory
+        owner: "{{ _patroni_barman_user }}"
+        group: "{{ _patroni_barman_group }}"
+        mode: "u=rwx,go=rx"
+
+    - name: Create SSH keypair
+      community.crypto.openssh_keypair:
+        path: "{{ _patroni_barman_ssh_keypair }}"
+        mode: "u=rw,go="
+      retries: 2
+      delay: 5
+      become: true
+      become_user: "{{ _patroni_barman_user }}"
+      register: _barman_keypair
+
+    - name: Distribute SSH public keys
+      ansible.posix.authorized_key:
+        comment: "{{ item }}"
+        user: "{{ _postgresql_user }}"
+        key: "{{ _barman_keypair.public_key }}"
+      loop_control:
+        label: "{{ _patroni_barman_user }}@{{ inventory_hostname }} -> {{ _postgresql_user }}@{{ item }}"
+      loop: "{{ groups[_patroni_cluster_hostgroup] }}"
+      delegate_to: "{{ item }}"
 
     - name: Create Barman configuration directory
       ansible.builtin.file:
@@ -159,6 +212,22 @@
             _conf_extra: "{{ _patroni_barman_conf_cluster }}"
           register: barman_cluster_conf
 
+        - name: Manage Barman cluster directory
+          ansible.builtin.file:
+            path: "{{ _patroni_barman_wal_dir | dirname }}"
+            owner: "{{ _patroni_barman_user }}"
+            group: "{{ _patroni_barman_group }}"
+            mode: "u=rwx,g=rwx,o=rx"
+            state: directory
+
+        - name: Manage Barman cluster wal directory
+          ansible.builtin.file:
+            path: "{{ _patroni_barman_wal_dir }}"
+            owner: "{{ _patroni_barman_user }}"
+            group: "{{ _patroni_barman_group }}"
+            mode: "u=rwx,g=rwx,o=rx"
+            state: directory
+
         - name: Verify Barman cluster configuration
           block:
             - name: Initialize Barman backup
@@ -204,6 +273,7 @@
             mode: "u=rw,g=r,o="
             remote_src: true
           vars:
+            _conf_cluster: "{{ _patroni_cluster_name }}"
             _backup_attr: "backup_file"
           when: _backup_attr in barman_cluster_conf
 

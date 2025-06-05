@@ -62,6 +62,8 @@ bootstrap:
         max_worker_processes: {{ _config_postgresql_max_worker_processes }}
         wal_log_hints: "{{ _config_postgresql_wal_log_hints }}"
         track_commit_timestamp: "{{ _config_postgresql_track_commit_timestamp }}"
+        archive_mode: "on"
+        archive_command: "barman-wal-archive {{ _patroni_barman_archive_server }} molecule %p"
       pg_hba:
         - local                all                  all                                       peer
 {% for e in _config_hba -%}

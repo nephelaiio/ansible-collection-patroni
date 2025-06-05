@@ -7,70 +7,70 @@ dependency:
 driver:
   name: default
 platforms:
-  - name: patroni-update-cluster-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 4
     size: 30G
     groups:
       - patroni_cluster
-  - name: patroni-update-cluster-02
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-02
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 4
     size: 30G
     groups:
       - patroni_cluster
-  - name: patroni-update-cluster-03
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-03
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 4
     size: 30G
     groups:
       - patroni_cluster
-  - name: patroni-update-consul-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
     memory: 1
     size: 30G
     groups:
       - patroni_consul
-  - name: patroni-update-consul-02
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-02
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
     memory: 1
     size: 30G
     groups:
       - patroni_consul
-  - name: patroni-update-consul-03
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-03
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
     memory: 1
     size: 30G
     groups:
       - patroni_consul
-  - name: patroni-update-haproxy-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 2
     size: 30G
     groups:
       - patroni_haproxy
-  - name: patroni-update-haproxy-02
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-02
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 2
     size: 30G
     groups:
       - patroni_haproxy
-  - name: patroni-update-haproxy-03
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-03
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 2
     size: 30G
     groups:
       - patroni_haproxy
-  - name: patroni-update-barman-01
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
     memory: 4
