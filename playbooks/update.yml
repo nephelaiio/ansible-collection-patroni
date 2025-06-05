@@ -206,7 +206,7 @@
             body:
               leader: "{{ _cluster_leader }}"
             status_code: 200
-            timeout: 60
+            timeout: "{{ _patroni_cluster_switchover_timeout }}"
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
         - name: Verify replica status
