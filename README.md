@@ -49,6 +49,7 @@ Cluster wide parameters
 | patroni_cluster_maxlag_failover                     |                        1048576 | Patroni cluster max async replica lag bytes        | false    |
 | patroni_cluster_maxlag_sync                         |                             -1 | Patroni cluster max sync replica lag bytes         | false    |
 | patroni_cluster_start_timeout                       |                             60 | Patroni cluster max member start timeout           | false    |
+| patroni_cluster_switchover_timeout                  |                             60 | Patroni cluster max switchover api timeout         | false    |
 | patroni_cluster_log_path                            |               /var/log/patroni | Patroni cluster log directory                      | false    |
 | patroni_cluster_log_destination                     |                 stderr,jsonlog | Patroni cluster log formats                        | false    |
 | patroni_cluster_hba                                 |                             [] | Patroni cluster hba objects                        | false    |
