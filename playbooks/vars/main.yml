@@ -6,7 +6,7 @@ patroni_defaults_release_consul: "1.18.1-1"
 patroni_defaults_dcs:
   postgresql:
     parameters:
-      archive_mode: on
+      archive_mode: "on"
       archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
 
 # Overridable values
