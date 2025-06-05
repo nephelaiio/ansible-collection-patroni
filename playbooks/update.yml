@@ -178,14 +178,6 @@
       ansible.builtin.debug:
         var: _cluster_state.json
 
-    - name: Display cluster members status
-      ansible.builtin.debug:
-        msg: |
-          Cluster members status:
-          {% for member in _cluster_state.json.members %}
-          - {{ member.name }}: role={{ member.role }}, state={{ member.state }}, lag={{ member.lag | default('N/A') }}
-          {% endfor %}
-
     - name: Verify replicas are healthy
       ansible.builtin.assert:
         that:
@@ -204,9 +196,11 @@
             method: POST
             body_format: json
             body:
-              leader: "{{ ansible_hostname | ansible.builtin.regex_replace('-', '_') }}"
+              leader: "{{ _cluster_leader }}"
             status_code: 200
             timeout: 3
+          vars:
+            _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
           retries: 30
           register: patroni_switchover
           until: patroni_switchover is succeeded
