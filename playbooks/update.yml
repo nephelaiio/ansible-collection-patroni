@@ -174,9 +174,17 @@
         timeout: 10
       register: _cluster_state
 
+    - name: Set cluster state facts
+      ansible.builtin.set_fact:
+        _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
+
     - name: Debug cluster state
       ansible.builtin.debug:
         var: _cluster_state.json
+
+    - name: Debug cluster leader
+      ansible.builtin.debug:
+        var: _cluster_leader
 
     - name: Verify replicas are healthy
       ansible.builtin.assert:
@@ -200,7 +208,7 @@
             status_code: 200
             timeout: 3
           vars:
-            _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
+            _cluster_leader: "{{ _cluster_leader }}"
           retries: 30
           register: patroni_switchover
           until: patroni_switchover is succeeded
