@@ -166,6 +166,7 @@ provisioner:
           patroni_cluster_barman_password: molecule
           patroni_watchdog_enable: false
           patroni_watchdog_mode: off
+          patroni_barman_verify: true
           patroni_cluster_roles:
             - name: admin
               password: admin

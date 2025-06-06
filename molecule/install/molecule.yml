@@ -169,6 +169,7 @@ provisioner:
           patroni_molecule_username: install
           patroni_molecule_password: molecule
           patroni_molecule_database: test
+          patroni_barman_verify: true
           patroni_config_dcs:
             postgresql:
               parameters:
