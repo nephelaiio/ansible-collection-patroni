@@ -244,6 +244,7 @@ _patroni_barman_conf_compression: "{{ patroni_barman_conf_compression | default(
 _patroni_barman_conf_bwlimit: "{{ patroni_barman_conf_bwlimit | default(0) }}"
 _patroni_barman_conf_include: "{{ patroni_barman_conf_include | default('') }}"
 _patroni_barman_conf_cluster: "{{ patroni_barman_conf_cluster | default('') }}"
+_patroni_barman_verify: "{{ patroni_barman_verify | default(False) }}"
 
 # Hardcoded values
 _patroni_groups_master: "_patroni_cluster_master"

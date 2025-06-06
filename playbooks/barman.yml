@@ -177,6 +177,7 @@
         _conf_extra: "{{ _patroni_barman_conf_include }}"
 
     - name: Manage Barman pgpass
+      when: _patroni_barman_verify | bool
       ansible.builtin.template:
         src: "pgpass.j2"
         dest: "{{ _patroni_barman_home }}/.pgpass"
