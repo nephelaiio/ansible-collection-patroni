@@ -177,7 +177,6 @@
         _conf_extra: "{{ _patroni_barman_conf_include }}"
 
     - name: Manage Barman pgpass
-      when: _patroni_barman_verify | bool
       ansible.builtin.template:
         src: "pgpass.j2"
         dest: "{{ _patroni_barman_home }}/.pgpass"
@@ -191,6 +190,7 @@
         _conf_backup_port: "{{ _patroni_haproxy_port_psql_master_local }}"
 
     - name: Update Barman cluster configuration
+      when: _patroni_barman_verify | bool
       block:
         - name: Manage Barman cluster configuration
           ansible.builtin.template:
