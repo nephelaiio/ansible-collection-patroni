@@ -1,8 +1,7 @@
 ---
 # Defaults
-patroni_defaults_release_postgresql: "16.2"
-patroni_defaults_release_patroni: "3.2.2"
-patroni_defaults_release_consul: "1.18.1-1"
+patroni_defaults_release_postgresql: "16"
+patroni_defaults_release_consul: "1.21.1-1"
 patroni_defaults_dcs:
   postgresql:
     parameters:
@@ -18,7 +17,6 @@ _patroni_update_skip_hostgroup: "{{ patroni_update_skip_group | default('patroni
 _patroni_haproxy_hostgroup: "{{ patroni_haproxy_group | default('patroni_haproxy') }}"
 
 _patroni_release_postgresql: "{{ patroni_release_postgresql | default(patroni_defaults_release_postgresql) }}"
-_patroni_release_patroni: "{{ patroni_release_postgresql | default(patroni_defaults_release_patroni) }}"
 
 _patroni_config_hostnames: "{{ patroni_config_hostnames | default(True) | bool }}"
 _patroni_config_encoding: "{{ postgresql_locale | split('.') | last | regex_replace('-', '') }}"

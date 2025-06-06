@@ -71,7 +71,7 @@
             _format: "awk -v OFS='=' '{ print $1,$2 }' | sed -E 's/[.][^=]+//' | tail -1 | xargs"
             _release: "{{ _patroni_release_postgresql }}"
           loop: "{{ [_postgresql_package_all] | flatten }}"
-          register: _postgres_versions
+          register: _postgresql_versions
           changed_when: false
 
         - name: Install PostgreSQL
@@ -80,7 +80,7 @@
           vars:
             _conf_exists: "{{ _postgresql_conf_main_query.stat.exists }}"
             postgresql_conf_main_file: "{{ _conf_exists | ternary('postgresql.base.conf', 'postgresql.conf') }}"
-            postgresql_package_name: "{{ _postgres_versions.results | map(attribute='stdout') }}"
+            postgresql_package_name: "{{ _postgresql_versions.results | map(attribute='stdout') }}"
 
         - name: Install PostgreSQL extensions
           ansible.builtin.package:
