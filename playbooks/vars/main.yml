@@ -6,7 +6,7 @@ patroni_defaults_release_consul: "1.18.1-1"
 patroni_defaults_dcs:
   postgresql:
     parameters:
-      archive_mode: on
+      archive_mode: "on"
       archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
 
 # Overridable values
@@ -26,7 +26,7 @@ _patroni_config_locale: "{{ postgresql_locale }}"
 _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
-_patroni_config_dcs: "{{ patroni_config_dcs | default({}) }}"
+_patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) }}"
 _patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
 _patroni_bootstrap_postgresql_wal_level: "{{ patroni_bootstrap_postgresql_wal_level | default('logical') }}"
 _patroni_bootstrap_postgresql_wal_keep_segments: "{{ patroni_bootstrap_postgresql_wal_keep_segments | default(8) }}"
