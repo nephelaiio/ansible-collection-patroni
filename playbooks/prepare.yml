@@ -15,7 +15,7 @@
       ansible.builtin.lineinfile:
         path: /etc/hosts
         regexp: ".*{{ item }}.*"
-        line: "{{ _member_address }} {{ _fqdn }} {{ _hostname }}"
+        line: "{{ _member_address }} {{ _fqdn }} {{ _hostname }} localhost"
       vars:
         _member_address: "{{ hostvars[item]['ansible_default_ipv4']['address'] }}"
         _fqdn: "{{ hostvars[item]['ansible_fqdn'] }}"
