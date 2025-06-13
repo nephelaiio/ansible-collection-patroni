@@ -21,7 +21,9 @@
         _fqdn: "{{ hostvars[item]['ansible_fqdn'] }}"
         _hostname: "{{ hostvars[item]['ansible_hostname'] }}"
       loop: "{{ ansible_play_hosts }}"
-      when: _patroni_config_hostnames
+      when:
+        - _patroni_config_hostnames
+        - ansible_hostname != _hostname
 
     - name: Install yum prerequisites
       ansible.builtin.package:
