@@ -2,10 +2,12 @@
 extends: default
 
 ignore:
-  - '.venv/'
-  - '.devbox/'
-  - 'roles/'
-  - '*.j2.yml'
+  - .venv/
+  - .devbox/
+  - roles/
+  - playbooks/templates/
+  - .ansible/
+  - ansible_collections/
 
 rules:
   comments-indentation: false

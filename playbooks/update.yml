@@ -72,7 +72,7 @@
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
-    - name: Verify replica status
+    - name: Verify replica pre-update status
       ansible.builtin.uri:
         url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica"
         user: "{{ _api_username }}"
@@ -94,7 +94,7 @@
       ansible.builtin.reboot:
         reboot_timeout: "{{ patroni_reboot_timeout | default(300) }}"
 
-    - name: Verify replica status
+    - name: Verify replica post-update status
       ansible.builtin.uri:
         url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
         user: "{{ _api_username }}"
@@ -209,7 +209,7 @@
             timeout: "{{ _patroni_cluster_switchover_timeout }}"
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
-        - name: Verify replica status
+        - name: Verify replica pre-update status
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
             user: "{{ _api_username }}"
@@ -270,7 +270,7 @@
       ansible.builtin.reboot:
         reboot_timeout: "{{ patroni_reboot_timeout | default(300) }}"
 
-    - name: Verify replica status
+    - name: Verify replica post-update status
       ansible.builtin.uri:
         url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
         user: "{{ _api_username }}"

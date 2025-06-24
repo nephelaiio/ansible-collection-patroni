@@ -2,6 +2,7 @@
 .venv/
 .devbox/
 .ansible/
+ansible_collections/
 
 # file globs
 nephelaiio-patroni-*.tar.gz

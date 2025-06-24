@@ -1,5 +1,8 @@
 .PHONY: ${MAKECMDGOALS}
 
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
+
 MOLECULE_SCENARIO ?= install
 MOLECULE_DOCKER_IMAGE ?= ubuntu2204
 MOLECULE_DOCKER_COMMAND ?= /lib/systemd/systemd
@@ -15,67 +18,58 @@ COLLECTION_NAMESPACE = $$(yq -r '.namespace' < galaxy.yml)
 COLLECTION_NAME = $$(yq -r '.name' < galaxy.yml)
 COLLECTION_VERSION = $$(yq -r '.version' < galaxy.yml)
 
+LOGIN_ARGS ?=
+
 all: install version lint test
 
 test:
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	MOLECULE_DOCKER_COMMAND=${MOLECULE_DOCKER_COMMAND} \
 	MOLECULE_DOCKER_IMAGE=${MOLECULE_DOCKER_IMAGE} \
-	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
+	uv run molecule $@ -s ${MOLECULE_SCENARIO}
 
 install:
-	@sudo apt-get update
-	@sudo apt-get install -y libvirt-dev
-	@poetry install --no-root
+	@uv sync
 
 lint:
-	poetry run yamllint .
-	poetry run ansible-lint -- playbooks/ --exclude roles --exclude .ansible/
+	uv run yamllint . -c .yamllint
+	ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
+	uv run ansible-lint playbooks/ --exclude "roles/*" --exclude ".ansible/*" --exclude "ansible_collections/*"
 
 requirements: install
 	@rm -rf ${ROLE_DIR}/*
 	@if [ -f ${ROLE_FILE} ]; then \
-		poetry run ansible-galaxy role install \
+		uv run ansible-galaxy role install \
 			--force --no-deps \
 			--roles-path ${ROLE_DIR} \
 			--role-file ${ROLE_FILE} ; \
 	fi
-	@poetry run ansible-galaxy collection install \
+	@ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
+	uv run ansible-galaxy collection install \
 		--force-with-deps .
 	@\find ./ -name "*.ymle*" -delete
 
 build: requirements
-	@poetry run ansible-galaxy collection build --force
-
-dependency create prepare converge idempotence side-effect verify destroy cleanup reset list:
-	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
-	MOLECULE_DOCKER_COMMAND=${MOLECULE_DOCKER_COMMAND} \
-	MOLECULE_DOCKER_IMAGE=${MOLECULE_DOCKER_IMAGE} \
-	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
+	@uv run ansible-galaxy collection build --force
 
 ifeq (login,$(firstword $(MAKECMDGOALS)))
     LOGIN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
     $(eval $(subst $(space),,$(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))):;@:)
 endif
 
-login:
+dependency create prepare converge idempotence side-effect verify destroy cleanup reset list:
+	ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	MOLECULE_DOCKER_COMMAND=${MOLECULE_DOCKER_COMMAND} \
 	MOLECULE_DOCKER_IMAGE=${MOLECULE_DOCKER_IMAGE} \
-	poetry run molecule $@ -s ${MOLECULE_SCENARIO} ${LOGIN_ARGS}
+	uv run molecule $@ -s ${MOLECULE_SCENARIO} ${LOGIN_ARGS}
 
 ignore:
-	@poetry run ansible-lint --generate-ignore
-
-clean: destroy reset
-	@poetry env remove $$(which python) >/dev/null 2>&1 || exit 0
+	@uv run ansible-lint --generate-ignore
 
 publish: build
-	poetry run ansible-galaxy collection publish --api-key ${GALAXY_API_KEY} \
+	uv run ansible-galaxy collection publish --api-key ${GALAXY_API_KEY} \
 		"${COLLECTION_NAMESPACE}-${COLLECTION_NAME}-${COLLECTION_VERSION}.tar.gz"
 
 version:
-	@poetry run molecule --version
-
-debug: version
-	@poetry export --dev --without-hashes || exit 0
+	@uv run molecule --version
