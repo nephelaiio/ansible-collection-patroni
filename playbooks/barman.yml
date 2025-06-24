@@ -92,6 +92,7 @@
       loop: "{{ groups[_patroni_barman_hostgroup] }}"
       become: true
       become_user: "{{ _postgresql_user }}"
+      tags: skip_ansible_lint
 
 - name: Configure Barman
   hosts: "{{ _patroni_barman_hostgroup }}"
