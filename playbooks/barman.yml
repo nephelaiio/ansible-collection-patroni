@@ -211,6 +211,7 @@
             _conf_sshopts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
             _conf_backup_host: "127.0.0.1"
             _conf_backup_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            _conf_retention_policy: "{{ _patroni_cluster_barman_retention_policy | default('RECOVERY WINDOW OF 3 DAYS') }}"
             _conf_extra: "{{ _patroni_barman_conf_cluster }}"
           register: barman_cluster_conf
 

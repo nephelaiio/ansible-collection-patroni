@@ -471,3 +471,17 @@
 
     - name: Verify Barman cluster backup configuration
       ansible.builtin.command: "barman check {{ _patroni_cluster_name }}"
+
+    - name: Verify Barman Retention Policy
+      ansible.builtin.command: "barman show-server {{ _patroni_cluster_name }} | grep -w retention_policy"
+      register: _barman_retention_policy
+
+    - debug:
+        msg: "Barman retention policy is {{ _barman_retention_policy.stdout }}"
+
+    - name: Assert Barman Retention Policy
+      ansible.builtin.assert:
+        that:
+          - _barman_retention_policy.stdout | search(_conf_retention_policy)
+      vars:
+        _conf_retention_policy: "{{ _patroni_cluster_barman_retention_policy | default('RECOVERY WINDOW OF 3 DAYS') }}"
