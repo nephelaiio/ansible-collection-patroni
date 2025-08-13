@@ -66,6 +66,7 @@ _patroni_cluster_hba_extra: "{{ patroni_cluster_hba | default([]) }}"
 _patroni_cluster_roles: "{{ patroni_cluster_roles | default([]) }}"
 _patroni_cluster_databases: "{{ patroni_cluster_databases | default([]) }}"
 _patroni_cluster_slot_barman: barman
+_patroni_cluster_barman_retention_policy: "{{ patroni_cluster_barman_retention_policy | default('RECOVERY WINDOW OF 3 DAYS') }}"
 _patroni_cluster_hba_base:
   - type: local
     database: all

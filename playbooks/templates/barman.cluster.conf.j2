@@ -14,6 +14,7 @@ slot_name = {{ _conf_slot }}
 backup_method = rsync
 reuse_backup = link
 backup_options = concurrent_backup
+retention_policy = {{ _conf_retention_policy }}
 {% if _conf_extra != '' %}
 ; Custom user configuration
 {{ _conf_extra }}

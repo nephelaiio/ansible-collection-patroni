@@ -85,6 +85,7 @@ Cluster wide parameters
 | patroni_barman_backup_crontab                       |                   0 0 \* \* \* | Schedule for `barman backup` cronjob               | false    |
 | patroni_barman_backup_dir                           |                /var/lib/barman | Barman backup directory                            | false    |
 | patroni_barman_verify                               |                          False | Verify Barman backups                              | false    |
+| patroni_cluster_barman_retention_policy          |         RECOVERY WINDOW OF 3 DAYS | Barman backups Retention Policy                    | false    |
 | patroni_archive_server                              | groups[patroni_barman_group].0 | Barman archive server                              | false    |
 | patroni_cluster_pg_stat_statements_enable           |                           true | Enable pg_stat_statements extension                | false    |
 | patroni_cluster_pg_stat_statements_max              |                           true | Enable pg_stat_statements extension                | false    |
