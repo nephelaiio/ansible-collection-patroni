@@ -479,7 +479,6 @@
     - name: Verify Barman backup retention policy
       ansible.builtin.assert:
         that:
-          # - _barman_backup_retention_policy_list | length > 0
           - _barman_backup_retention_policy_list.retention_policy == 'RECOVERY WINDOW OF 3 DAYS'
       vars:
         _barman_backup_retention_policy_data: "{{ _barman_backup_retention_policy.stdout | from_json }}"
