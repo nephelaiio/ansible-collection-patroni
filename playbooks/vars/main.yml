@@ -48,7 +48,7 @@ _patroni_cluster_api_username: "{{ patroni_cluster_api_username | default('patro
 _patroni_cluster_api_password: "{{ patroni_cluster_api_password }}"
 _patroni_cluster_postgres_password: "{{ patroni_cluster_postgres_password }}"
 _patroni_cluster_maxlag_failover: "{{ patroni_custer_maxlag_failover | default('1048576') }}"
-_patroni_cluster_maxlag_sync: "{{ patroni_custer_maxlag_sync | default('-1') }}"
+_patroni_cluster_maxlag_sync: "{{ patroni_cluster_maxlag_sync | default('-1') }}"
 _patroni_cluster_replication_username: "{{ patroni_cluster_replication_username | default('replicator') }}"
 _patroni_cluster_replication_password: "{{ patroni_cluster_replication_password }}"
 _patroni_cluster_barman_username: "{{ patroni_cluster_barman_username | default('barman') }}"
