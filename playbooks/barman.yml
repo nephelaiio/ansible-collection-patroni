@@ -191,7 +191,6 @@
         _conf_backup_port: "{{ _patroni_haproxy_port_psql_master_local }}"
 
     - name: Update Barman cluster configuration
-      when: _patroni_barman_verify | bool
       block:
         - name: Manage Barman cluster configuration
           ansible.builtin.template:
@@ -232,6 +231,7 @@
             state: directory
 
         - name: Verify Barman cluster configuration
+          when: _patroni_barman_verify | bool
           block:
             - name: Initialize Barman backup
               ansible.builtin.command: "barman cron"
