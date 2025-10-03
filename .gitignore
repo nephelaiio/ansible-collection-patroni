@@ -7,3 +7,4 @@ ansible_collections/
 # file globs
 nephelaiio-patroni-*.tar.gz
 *.ymle
+.DS_Store
