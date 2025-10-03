@@ -5,13 +5,13 @@ roles:
     version: 0.0.8
   - name: pip
     src: https://github.com/nephelaiio/ansible-role-pip.git
-    version: 6.0.1
+    version: 6.0.16
   - name: postgresql
     src: https://github.com/nephelaiio/ansible-role-postgresql.git
-    version: 0.1.15
+    version: 0.2.3
   - name: consul
     src: https://github.com/ansible-community/ansible-consul.git
     version: master
   - name: update
     src: https://github.com/robertdebock/ansible-role-update.git
-    version: 3.1.7
+    version: 3.1.10
