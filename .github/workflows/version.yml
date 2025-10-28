@@ -1,28 +1,10 @@
 ---
 name: version
-
+permissions:
+  contents: read
 on:
   pull_request:
-    branches:
-      - master
-
+    branches: ["main", "master"]
 jobs:
   version:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check if galaxy.yml has been modified
-        run: |
-          # Get a list of all modified files in this PR
-          FILES_CHANGED=$(git diff --name-only HEAD^ HEAD)
-          echo "Files changed: $FILES_CHANGED"
-
-          # Check if galaxy.yml is in the list of changed files
-          if [[ $FILES_CHANGED != *"galaxy.yml"* ]]; then
-            echo "Error: galaxy.yml has not been modified."
-            exit 1
-          fi
+    uses: pokerops/ansible-utils/.github/workflows/version.yml@master
