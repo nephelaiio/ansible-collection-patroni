@@ -16,6 +16,7 @@ dependencies:
   "nephelaiio.consul": "*"
   "community.postgresql": "*"
   "community.docker": "*"
+  "ansible.windows": "*"
 repository: http://github.com/nephelaiio/ansible-collection-patroni
 documentation: http://github.com/nephelaiio/ansible-collection-patroni
 homepage: http://github.com/nephelaiio/ansible-collection-patroni
