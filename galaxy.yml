@@ -19,5 +19,9 @@ documentation: http://github.com/nephelaiio/ansible-collection-patroni
 homepage: http://github.com/nephelaiio/ansible-collection-patroni
 issues: http://github.com/nephelaiio/ansible-collection-patroni/issues
 build_ignore:
+  - .git
   - .devbox
   - .venv
+  - .ansible
+  - .ansible_collections
+  - libvirt
