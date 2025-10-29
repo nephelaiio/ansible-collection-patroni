@@ -3,7 +3,7 @@
   hosts: patroni_cluster
   any_errors_fatal: true
   vars_files:
-    - ../../playbooks/vars/main.yml
+    - ../../../playbooks/vars/main.yml
   vars:
     _suffix: "{{ (ansible_os_family == 'RedHat') | ternary('.service', '') }}"
     _service: "{{ _patroni_cluster_service_name }}{{ _suffix }}"
@@ -301,7 +301,7 @@
   hosts: patroni_consul
   any_errors_fatal: true
   vars_files:
-    - ../../playbooks/vars/main.yml
+    - ../../../playbooks/vars/main.yml
   tasks:
     - name: Verify Consul cluster status
       block:
@@ -352,7 +352,7 @@
   hosts: patroni_haproxy
   any_errors_fatal: true
   vars_files:
-    - ../../playbooks/vars/main.yml
+    - ../../../playbooks/vars/main.yml
   tasks:
     - name: Create virtualenv
       ansible.builtin.tempfile:
@@ -378,7 +378,7 @@
       block:
         - name: Verify master connectivity
           community.postgresql.postgresql_info:
-            db: "{{ patroni_molecule_database }}"
+            login_db: "{{ patroni_molecule_database }}"
             filter:
               - "version"
             login_host: 127.0.0.1
@@ -403,7 +403,7 @@
 
         - name: Test slave connectivity
           community.postgresql.postgresql_info:
-            db: "{{ patroni_molecule_database }}"
+            login_db: "{{ patroni_molecule_database }}"
             filter:
               - "version"
             login_host: 127.0.0.1
@@ -432,7 +432,7 @@
   become: true
   become_user: "{{ _patroni_barman_user }}"
   vars_files:
-    - ../../playbooks/vars/main.yml
+    - ../../../playbooks/vars/main.yml
   tasks:
     - name: Test direct ssh connectivity to Patroni cluster members
       ansible.builtin.command: "ssh postgres@{{ item.0 }} {{ _ssh_options }} hostname"

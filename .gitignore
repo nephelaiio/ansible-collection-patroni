@@ -3,6 +3,7 @@
 .devbox/
 .ansible/
 ansible_collections/
+libvirt/
 
 # file globs
 nephelaiio-patroni-*.tar.gz

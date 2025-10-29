@@ -89,7 +89,7 @@ provisioner:
     cleanup: ../common/cleanup.yml
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
-    side_effect: ../common/update.yml
+    side_effect: ../common/databases.yml
     verify: ../common/verify.yml
   inventory:
     hosts:
@@ -99,6 +99,7 @@ provisioner:
           patroni_nolog: false
           postgresql_nolog: "{{ patroni_nolog | bool }}"
           patroni_release_postgresql: 16
+          patroni_config_hostnames: false
           patroni_consul_backuppath: /backup
           patroni_cluster_name: molecule
           patroni_cluster_api_password: molecule
@@ -106,12 +107,32 @@ provisioner:
           patroni_cluster_replication_password: molecule
           patroni_cluster_rewind_password: molecule
           patroni_cluster_barman_password: molecule
+          patroni_watchdog_enable: false
+          patroni_watchdog_mode: off
           patroni_barman_verify: true
+          patroni_cluster_roles:
+            - name: admin
+              password: admin
+              groups:
+                - name: admins
+            - name: user
+              password: user
+              groups:
+                - name: read_only
+            - name: admins
+              role_attr_flags: "NOLOGIN"
+            - name: read_only
+              role_attr_flags: "NOLOGIN"
+          patroni_cluster_databases:
+            - name: database
+              roles:
+                - name: admins
+                  privs: ALL
+                - name: read_only
+                  privs: ALL
 verifier:
   name: ansible
 scenario:
-  create_sequence:
-    - create
   prepare_sequence:
     - prepare
   converge_sequence:

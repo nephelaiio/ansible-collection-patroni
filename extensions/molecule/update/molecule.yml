@@ -1,0 +1,128 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+    requirements-file: requirements.yml
+driver:
+  name: default
+platforms:
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_cluster
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_cluster
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-cluster-03
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_cluster
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-03
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 2
+    size: 30G
+    groups:
+      - patroni_haproxy
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 2
+    size: 30G
+    groups:
+      - patroni_haproxy
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-03
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 2
+    size: 30G
+    groups:
+      - patroni_haproxy
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_barman
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      allow_world_readable_tmpfiles: true
+      callbacks_enabled: ansible.posix.profile_tasks
+  playbooks:
+    create: ../common/create.yml
+    destroy: ../common/destroy.yml
+    prepare: ../common/prepare.yml
+    converge: ../common/install.yml
+    side_effect: ../common/update.yml
+    verify: ../common/verify.yml
+  inventory:
+    hosts:
+      all:
+        vars:
+          libvirt_platforms: "{{ molecule_yml.platforms }}"
+          patroni_nolog: false
+          postgresql_nolog: "{{ patroni_nolog | bool }}"
+          patroni_release_postgresql: 16
+          patroni_consul_backuppath: /backup
+          patroni_cluster_name: molecule
+          patroni_cluster_api_password: molecule
+          patroni_cluster_postgres_password: molecule
+          patroni_cluster_replication_password: molecule
+          patroni_cluster_rewind_password: molecule
+          patroni_cluster_barman_password: molecule
+          patroni_barman_verify: true
+verifier:
+  name: ansible
+scenario:
+  create_sequence:
+    - create
+  prepare_sequence:
+    - prepare
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+  cleanup_sequence:
+    - cleanup
+  test_sequence:
+    - dependency
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify

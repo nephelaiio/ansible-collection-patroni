@@ -1,7 +1,7 @@
 ---
 namespace: nephelaiio
 name: patroni
-version: 0.2.16
+version: 0.3.0
 readme: README.md
 authors:
   - Ted Cook <358176+teddyphreak@users.noreply.github.com>
@@ -14,10 +14,17 @@ tags:
 dependencies:
   "nephelaiio.plugins": "*"
   "nephelaiio.consul": "*"
+  "community.postgresql": "*"
+  "community.docker": "*"
+  "ansible.windows": "*"
 repository: http://github.com/nephelaiio/ansible-collection-patroni
 documentation: http://github.com/nephelaiio/ansible-collection-patroni
 homepage: http://github.com/nephelaiio/ansible-collection-patroni
 issues: http://github.com/nephelaiio/ansible-collection-patroni/issues
 build_ignore:
+  - .git
   - .devbox
   - .venv
+  - .ansible
+  - .ansible_collections
+  - libvirt
