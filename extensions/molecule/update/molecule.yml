@@ -86,7 +86,6 @@ provisioner:
   playbooks:
     create: ../common/create.yml
     destroy: ../common/destroy.yml
-    cleanup: ../common/cleanup.yml
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
     side_effect: ../common/update.yml
