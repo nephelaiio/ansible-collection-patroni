@@ -1,0 +1,44 @@
+---
+- name: Set cluster facts
+  ansible.builtin.import_playbook: nephelaiio.patroni.facts
+
+- name: Create tables and schemas
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Create schemas
+      community.postgresql.postgresql_schema:
+        login_db: "{{ _db }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        name: "{{ _name }}"
+      vars:
+        _name: "{{ item.schema }}"
+        _db: "{{ item.source }}"
+      loop_control:
+        label: "Schema: {{ _name }} - Database: {{ _db }}"
+      loop: "{{ _patroni_cluster_fdw }}"
+      become_user: "{{ _postgresql_user }}"
+
+    - name: Create tables
+      community.postgresql.postgresql_table:
+        login_db: "{{ _db }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        name: "{{ _name }}"
+        columns: "{{ item.columns }}"
+      vars:
+        _name: "{{ item.table }}"
+        _db: "{{ item.source }}"
+      loop_control:
+        label: "Table: {{ _name }} - Database: {{ _db }}"
+      loop: "{{ _patroni_cluster_fdw }}"
+      become_user: "{{ _postgresql_user }}"
+
+- name: Run nephelaiio.patroni.fdw playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.fdw

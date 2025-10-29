@@ -1,0 +1,58 @@
+---
+- name: Deploy Foeign Data Wrappers
+  hosts: _patroni_cluster_master
+  any_errors_fatal: true
+  become: true
+  vars_files:
+    - main.yml
+  tasks:
+    - name: End play when there are no FDWs to manage
+      ansible.builtin.meta: end_play
+      when: _patroni_cluster_fdw | length == 0
+
+    - name: Verify postgresql foreign data wrapper parameters
+      ansible.builtin.assert:
+        that:
+          - _source | length == 0
+          - _destination | length == 0
+          - _username | length == 0
+          - _password | length == 0
+          - _table | length == 0
+          - _schema | length == 0
+          - (_columns | length == 0) and (_target_columns | length > 0)
+      vars:
+        _databases: "{{ _patroni_cluster_fdw }}"
+        _source: "{{ _databases | rejectattr('source', 'defined') }}"
+        _destination: "{{ _databases | rejectattr('destination', 'defined') }}"
+        _username: "{{ _databases | rejectattr('username', 'defined') }}"
+        _password: "{{ _databases | rejectattr('password', 'defined') }}"
+        _table: "{{ _databases | rejectattr('table', 'defined') }}"
+        _schema: "{{ _databases | rejectattr('schema', 'defined') }}"
+        _columns: "{{ _databases | rejectattr('columns', 'defined') }}"
+        _target_columns: "{{ _databases | selectattr('columns', 'defined') }}"
+
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Confirm if source database exist
+      community.postgresql.postgresql_ping:
+        login_db: "{{ _name }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+      vars:
+        _name: "{{ item.source }}"
+      loop_control:
+        label: "{{ _name }}"
+      loop: "{{ _patroni_cluster_fdw }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _postgresql_db_source_query
+
+    - name: Verify postgresql source databases
+      ansible.builtin.assert:
+        that: _missing | length == 0
+        fail_msg: "There are missing source databases in PostgreSQL: [{{ _missing_names | join(', ') }}]"
+      vars:
+        _results: "{{ _postgresql_db_source_query.results | default([]) }}"
+        _missing: "{{ _results | rejectattr('is_available') }}"
+        _missing_names: "{{ _missing | map(attribute='source') }}"
