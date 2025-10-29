@@ -90,7 +90,6 @@ provisioner:
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
     verify: ../common/verify.yml
-    side_effect: ../common/configure.yml
   inventory:
     hosts:
       all:
