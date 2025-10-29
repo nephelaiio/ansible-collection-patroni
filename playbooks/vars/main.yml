@@ -245,6 +245,7 @@ _patroni_barman_conf_include: "{{ patroni_barman_conf_include | default('') }}"
 _patroni_barman_conf_cluster: "{{ patroni_barman_conf_cluster | default('') }}"
 _patroni_barman_verify: "{{ patroni_barman_verify | default(True) }}"
 _patroni_barman_retention_policy: "{{ patroni_barman_retention_policy | default('RECOVERY WINDOW OF 3 DAYS') }}"
+_patroni_cluster_fdw: "{{ patroni_cluster_fdw | default([]) }}"
 
 # Hardcoded values
 _patroni_groups_master: "_patroni_cluster_master"
