@@ -378,7 +378,7 @@
       block:
         - name: Verify master connectivity
           community.postgresql.postgresql_info:
-            db: "{{ patroni_molecule_database }}"
+            login_db: "{{ patroni_molecule_database }}"
             filter:
               - "version"
             login_host: 127.0.0.1
@@ -403,7 +403,7 @@
 
         - name: Test slave connectivity
           community.postgresql.postgresql_info:
-            db: "{{ patroni_molecule_database }}"
+            login_db: "{{ patroni_molecule_database }}"
             filter:
               - "version"
             login_host: 127.0.0.1
