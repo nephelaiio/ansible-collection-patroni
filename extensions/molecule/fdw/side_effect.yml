@@ -6,7 +6,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../playbooks/vars/main.yml
+    - ../../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
