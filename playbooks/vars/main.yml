@@ -245,6 +245,10 @@ _patroni_barman_conf_include: "{{ patroni_barman_conf_include | default('') }}"
 _patroni_barman_conf_cluster: "{{ patroni_barman_conf_cluster | default('') }}"
 _patroni_barman_verify: "{{ patroni_barman_verify | default(True) }}"
 _patroni_barman_retention_policy: "{{ patroni_barman_retention_policy | default('RECOVERY WINDOW OF 3 DAYS') }}"
+_patroni_postgresql_conf_ansible: |
+  logging_collector = on
+  log_destination = '{{ _patroni_cluster_log_destination }}'
+  log_directory = '{{ _patroni_cluster_log_path }}'
 
 # Hardcoded values
 _patroni_groups_master: "_patroni_cluster_master"
@@ -259,7 +263,4 @@ postgresql_pip_manage: false
 postgresql_locale: en_US.UTF-8
 postgresql_conf_socketdir_manage: false
 postgresql_nolog: "{{ _patroni_nolog }}"
-postgresql_conf_ansible: |
-  logging_collector = on
-  log_destination = '{{ _patroni_cluster_log_destination }}'
-  log_directory = '{{ _patroni_cluster_log_path }}'
+postgresql_conf_ansible: "{{ patroni_postgresql_conf_ansible | default(_patroni_postgresql_conf_ansible) }}"
