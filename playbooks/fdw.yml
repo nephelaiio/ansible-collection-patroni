@@ -148,3 +148,25 @@
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_results
       when: _extension == 'postgres_fdw'
+
+    - name: Update PostgreSQL remote servers
+      community.postgresql.postgresql_query:
+        login_db: "{{ _db_source }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: >-
+          ALTER SERVER {{ _server_name }}
+          OPTIONS (SET host '{{ _host }}', SET dbname '{{ _db_remote }}', SET port '{{ _slave_port }}');
+        autocommit: true
+      vars:
+        _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+        _host: "{{ groups['_patroni_cluster_slave'] | first }}"
+        _server_name: "{{ item.server_name }}"
+        _db_source: "{{ item.source }}"
+        _db_remote: "{{ item.remote }}"
+        _extension: "{{ item.extension | lower }}"
+      loop_control:
+        label: "{{ _server_name }} - {{ _host }}"
+      loop: "{{ _patroni_cluster_fdw_update }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_results
+      changed_when: false
