@@ -122,7 +122,7 @@ provisioner:
                   privs: ALL
           patroni_cluster_fdw:
             - source: "{{ patroni_molecule_database }}"
-              destination: "{{ patroni_molecule_database }}"
+              remote: "{{ patroni_molecule_database }}"
               username: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
               table: test
