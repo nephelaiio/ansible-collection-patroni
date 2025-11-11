@@ -10,11 +10,15 @@
       ansible.builtin.meta: end_play
       when: _patroni_cluster_fdw | length == 0
 
+    - name: Verify postgresql slave hostgroup
+      ansible.builtin.assert:
+        that: groups['_patroni_cluster_slave'] | length > 0
+
     - name: Verify postgresql foreign data wrapper parameters
       ansible.builtin.assert:
         that:
           - _source | length == 0
-          - _destination | length == 0
+          - _remote | length == 0
           - _username | length == 0
           - _password | length == 0
           - _table | length == 0
@@ -23,13 +27,21 @@
       vars:
         _databases: "{{ _patroni_cluster_fdw }}"
         _source: "{{ _databases | rejectattr('source', 'defined') }}"
-        _destination: "{{ _databases | rejectattr('destination', 'defined') }}"
+        _remote: "{{ _databases | rejectattr('remote', 'defined') }}"
         _username: "{{ _databases | rejectattr('username', 'defined') }}"
         _password: "{{ _databases | rejectattr('password', 'defined') }}"
         _table: "{{ _databases | rejectattr('table', 'defined') }}"
         _schema: "{{ _databases | rejectattr('schema', 'defined') }}"
         _columns: "{{ _databases | rejectattr('columns', 'defined') }}"
         _target_columns: "{{ _databases | selectattr('columns', 'defined') }}"
+
+    - name: Verify postgresql foreign data wrapper remotes
+      ansible.builtin.assert:
+        that: (_databases | length) == (_remotes | length)
+        fail_msg: "Remote database should be unique"
+      vars:
+        _databases: "{{ _patroni_cluster_fdw }}"
+        _remotes: "{{ _databases | map(attribute='remote') | flatten | unique }}"
 
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -56,3 +68,83 @@
         _results: "{{ _postgresql_db_source_query.results | default([]) }}"
         _missing: "{{ _results | rejectattr('is_available') }}"
         _missing_names: "{{ _missing | map(attribute='source') }}"
+
+    - name: Query existing FDW servers
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT * FROM pg_foreign_server;
+        login_db: "{{ _db_source }}"
+      vars:
+        _db_source: "{{ item.source }}"
+      loop_control:
+        label: "{{ _db_source }}"
+      loop: "{{ _patroni_cluster_fdw }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_results
+
+    - name: Set PostgreSQL FDW facts
+      ansible.builtin.set_fact:
+        _patroni_cluster_fdw_update: "{{ _update }}"
+        _patroni_cluster_fdw_create: "{{ _create }}"
+        _patroni_cluster_fdw_delete: "{{ _delete }}"
+      vars:
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _map_format: "nephelaiio.plugins.map_format"
+        _map_defaults:
+          state: present
+          extension: postgres_fdw
+        _cluster_fdw: "{{ _patroni_cluster_fdw }}"
+        _fdw_defaults: "{{ [_map_defaults] | product(_cluster_fdw) | map('combine') | sort(attribute='remote') }}"
+        _remote_dbs: "{{ _fdw_defaults | map(attribute='remote') | map('lower') }}"
+        _remote_dict: "{{ _remote_dbs | map(_to_dict, 'remote') }}"
+        _remotes_list: "{{ _fdw_defaults | zip(_remote_dict) | map('combine') }}"
+        _remote_format: "{{ _remote_dbs | map(_map_format, '%s_server') }}"
+        _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') }}"
+        _server_names_dict: "{{ _remote_regex | map(_to_dict, 'server_name') }}"
+        _server_names_list: "{{ _remotes_list | zip(_server_names_dict) | map('combine') }}"
+        _source_dbs: "{{ _server_names_list | map(attribute='source') | map('lower') }}"
+        _source_dict: "{{ _source_dbs | map(_to_dict, 'source') }}"
+        _sources_list: "{{ _server_names_list | zip(_source_dict) | map('combine') }}"
+        _targets: "{{ _sources_list | selectattr('state', 'equalto', 'present') }}"
+        _query: "{{ _patroni_fdw_results.results | default([]) }}"
+        _query_results: "{{ _query | selectattr('query_result', 'defined') | map(attribute='query_result') | flatten }}"
+        _srvnames: "{{ _query_results | map(attribute='srvname') | flatten }}"
+        _update: "{{ _targets | selectattr('server_name', 'in', _srvnames) }}"
+        _create: "{{ _targets | difference(_update) }}"
+        _delete: "{{ _sources_list | difference(_targets) | selectattr('server_name', 'in', _srvnames) }}"
+
+    - name: Create PostgreSQL extension
+      community.postgresql.postgresql_ext:
+        name: "{{ item.extension }}"
+        login_db: "{{ _db }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        state: present
+      vars:
+        _db: "{{ item.source }}"
+      loop_control:
+        label: "{{ _db }}"
+      loop: "{{ _patroni_cluster_fdw_create }}"
+      become_user: "{{ _postgresql_user }}"
+
+    - name: Create PostgreSQL remote servers
+      community.postgresql.postgresql_query:
+        login_db: "{{ _db_source }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: >-
+          CREATE SERVER {{ _server_name }}
+          FOREIGN DATA WRAPPER {{ _extension }}
+          OPTIONS (host '{{ _host }}', dbname '{{ _db_remote }}', port '{{ _slave_port }}');
+        autocommit: true
+      vars:
+        _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+        _host: "{{ groups['_patroni_cluster_slave'] | first }}"
+        _server_name: "{{ item.server_name }}"
+        _db_source: "{{ item.source }}"
+        _db_remote: "{{ item.remote }}"
+        _extension: "{{ item.extension | lower }}"
+      loop_control:
+        label: "{{ _server_name }} - {{ _host }}"
+      loop: "{{ _patroni_cluster_fdw_create }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_results
+      when: _extension == 'postgres_fdw'
