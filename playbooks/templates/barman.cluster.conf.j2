@@ -7,8 +7,8 @@ path_prefix = {{ _conf_bindir }}
 ssh_command = {{ _conf_sshcmd }}
 conninfo = host={{ _conf_backup_host }} port={{ _conf_backup_port }} user={{ _conf_db_user }} dbname=postgres
 streaming_conninfo = host={{ _conf_backup_host }} port={{ _conf_backup_port }} user={{ _conf_db_user }} dbname=replication
-archiver = on
-streaming_archiver = on
+archiver = {{ _conf_archiver }}
+streaming_archiver = {{ _conf_streaming_archiver }}
 create_slot = auto
 slot_name = {{ _conf_slot }}
 backup_method = rsync

@@ -149,7 +149,7 @@
         _map_format: nephelaiio.plugins.map_format
         _svc_running: "{{ (services[_patroni_cluster_service_name].state | default('running')) == 'running' }}"
         _slot_template: "[ '%s', { 'type': 'physical' } ]"
-        _slot_barman: "{{ _patroni_cluster_slot_barman }}"
+        _slot_barman: "{{ _patroni_cluster_barman_slot }}"
         _cluster_extensions: "{{ _patroni_cluster_extensions | selectattr('enabled') }}"
         _cluster_size: "{{ _cluster_hosts | length }}"
         _cluster_group: "{{ _patroni_cluster_hostgroup }}"
