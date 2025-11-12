@@ -227,7 +227,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
           DROP USER MAPPING FOR {{ _username }}
-          SERVER {{ _server_name }}
+          SERVER {{ _server_name }};
         autocommit: true
       vars:
         _server_name: "{{ item.server_name }}"
