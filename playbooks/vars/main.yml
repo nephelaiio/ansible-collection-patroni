@@ -65,7 +65,9 @@ _patroni_cluster_switchover_timeout: "{{ patroni_cluster_switchover_timeout | de
 _patroni_cluster_hba_extra: "{{ patroni_cluster_hba | default([]) }}"
 _patroni_cluster_roles: "{{ patroni_cluster_roles | default([]) }}"
 _patroni_cluster_databases: "{{ patroni_cluster_databases | default([]) }}"
-_patroni_cluster_slot_barman: barman
+_patroni_cluster_barman_slot: barman
+_patroni_cluster_barman_archiver: "{{ patroni_cluster_barman_archiver | default('on') }}"
+_patroni_cluster_barman_streaming_archiver: "{{ patroni_cluster_barman_streaming_archiver | default('on') }}"
 
 _patroni_cluster_hba_base:
   - type: local

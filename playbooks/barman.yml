@@ -202,7 +202,9 @@
             backup: true
           vars:
             _conf_cluster: "{{ _patroni_cluster_name }}"
-            _conf_slot: "{{ _patroni_cluster_slot_barman }}"
+            _conf_archiver: "{{ _patroni_cluster_barman_archiver }}"
+            _conf_streaming_archiver: "{{ _patroni_cluster_barman_streaming_archiver }}"
+            _conf_slot: "{{ _patroni_cluster_barman_slot }}"
             _conf_bindir: "{{ _postgresql_bindir }}"
             _conf_db_user: "{{ _patroni_cluster_barman_username }}"
             _conf_sshport: "{{ _patroni_haproxy_port_ssh_master_local }}"
