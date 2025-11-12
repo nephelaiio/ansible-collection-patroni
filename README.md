@@ -44,6 +44,8 @@ Cluster wide parameters
 | patroni_cluster_replication_password                |                            n/a | Patroni cluster replication password               | true     |
 | patroni_cluster_barman_username                     |                         barman | Patroni cluster barman username                    | false    |
 | patroni_cluster_barman_password                     |                            n/a | Patroni cluster barman password                    | true     |
+| patroni_cluster_barman_archiver                     |                            true | Patroni cluster barman archiver                    | false     |
+| patroni_cluster_barman_streaming_archiver           |                            true | Patroni cluster barman streaming_archiver          | false     |
 | patroni_cluster_roles                               |                             [] | Patroni cluster roles                              | false    |
 | patroni_cluster_databases                           |                             [] | Patroni cluster databases                          | false    |
 | patroni_cluster_maxlag_failover                     |                        1048576 | Patroni cluster max async replica lag bytes        | false    |
