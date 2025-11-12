@@ -20,7 +20,6 @@
           - _source | length == 0
           - _remote | length == 0
           - _username | length == 0
-          - _password | length == 0
           - _table | length == 0
           - _schema | length == 0
           - (_columns | length == 0) and (_target_columns | length > 0)
@@ -29,7 +28,6 @@
         _source: "{{ _databases | rejectattr('source', 'defined') }}"
         _remote: "{{ _databases | rejectattr('remote', 'defined') }}"
         _username: "{{ _databases | rejectattr('username', 'defined') }}"
-        _password: "{{ _databases | rejectattr('password', 'defined') }}"
         _table: "{{ _databases | rejectattr('table', 'defined') }}"
         _schema: "{{ _databases | rejectattr('schema', 'defined') }}"
         _columns: "{{ _databases | rejectattr('columns', 'defined') }}"
@@ -113,6 +111,17 @@
         _update: "{{ _targets | selectattr('server_name', 'in', _srvnames) }}"
         _create: "{{ _targets | difference(_update) }}"
         _delete: "{{ _sources_list | difference(_targets) | selectattr('server_name', 'in', _srvnames) }}"
+
+    - name: Verify postgresql foreign data wrapper user mapping password defined
+      ansible.builtin.assert:
+        that: _password | length == 0
+        fail_msg: "Foreing data wrapper user mapping passwords must be defined for these users: [{{ _usernames | join(', ') }}]"
+      vars:
+        _databases: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
+        _password_required_defined: "{{ _databases | selectattr('password_required', 'defined') }}"
+        _password_enabled: "{{ _password_required_defined | selectattr('password_required') }}"
+        _password: "{{ _password_enabled | rejectattr('password', 'defined') }}"
+        _usernames: "{{ _password | map(attribute='username') }}"
 
     - name: Create PostgreSQL extension
       community.postgresql.postgresql_ext:
