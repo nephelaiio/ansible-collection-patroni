@@ -181,6 +181,35 @@
       register: _patroni_fdw_results
       changed_when: false
 
+    - name: Query existing user mappings
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT * FROM pg_user_mapping;
+        login_db: "{{ _db_source }}"
+      vars:
+        _db_source: "{{ item.source }}"
+      loop_control:
+        label: "{{ _db_source }}"
+      loop: "{{ _patroni_cluster_fdw }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_user_results
+
+    - name: Set default FDW user mappings fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_user_mappings: []
+
+    - name: Set existing FDW user mappings fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + [_options_dict] }}"
+      vars:
+        _query: "{{ item.query_result | default([]) }}"
+        _options: "{{ _query | map(attribute='umoptions') | flatten }}"
+        _options_split: "{{ _options | map('regex_replace', '=', ':') | map('split', ':') }}"
+        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() }}"
+      loop_control:
+        label: "{{ item.item.remote }}"
+      loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
+
     - name: Create PostgreSQL user mappings
       community.postgresql.postgresql_query:
         login_db: "{{ _db_source }}"
@@ -215,13 +244,16 @@
           OPTIONS (SET user '{{ _username }}', {{ _password_filter }});
         autocommit: true
       vars:
+        _users: "{{ _patroni_fdw_existing_user_mappings | rejectattr('password_required') }}"
+        _existing_users: "{{ _users | map(attribute='user') }}"
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
         _username: "{{ item.username }}"
         _required: "{{ item.password_required }}"
+        _action: "{{ 'ADD' if (_username in _existing_users) else 'SET' }}"
         _password: "{{ item.password }}"
         _password_filter: "{{ _password_enabled if _required else _password_disabled }}"
-        _password_enabled: "SET password '{{ _password }}', SET password_required '{{ _required }}'"
+        _password_enabled: "{{ _action }} password '{{ _password }}', SET password_required '{{ _required }}'"
         _password_disabled: "SET password_required '{{ _required }}'"
       loop_control:
         label: "{{ _server_name }} - {{ _username }}"
