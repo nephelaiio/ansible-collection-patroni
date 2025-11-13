@@ -14,31 +14,35 @@
       ansible.builtin.assert:
         that: groups['_patroni_cluster_slave'] | length > 0
 
+    - name: Set PostgreSQL FDW fact
+      ansible.builtin.set_fact:
+        _patroni_cluster_fdw_databases: "{{ _tables_overwritten }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw | sort(attribute='remote') }}"
+        _tables: "{{ _fdw | map(attribute='tables') | map('dict2items') }}"
+        _tables_dict: "{{ _tables | map('nephelaiio.plugins.to_dict', 'tables') }}"
+        _tables_overwritten: "{{ _fdw | zip(_tables_dict) | map('combine') }}"
+
     - name: Verify postgresql foreign data wrapper parameters
       ansible.builtin.assert:
         that:
           - _source | length == 0
           - _remote | length == 0
           - _username | length == 0
-          - _table | length == 0
-          - _schema | length == 0
-          - (_columns | length == 0) and (_target_columns | length > 0)
+          - _tables | length == 0
       vars:
-        _databases: "{{ _patroni_cluster_fdw }}"
+        _databases: "{{ _patroni_cluster_fdw_databases }}"
         _source: "{{ _databases | rejectattr('source', 'defined') }}"
         _remote: "{{ _databases | rejectattr('remote', 'defined') }}"
         _username: "{{ _databases | rejectattr('username', 'defined') }}"
-        _table: "{{ _databases | rejectattr('table', 'defined') }}"
-        _schema: "{{ _databases | rejectattr('schema', 'defined') }}"
-        _columns: "{{ _databases | rejectattr('columns', 'defined') }}"
-        _target_columns: "{{ _databases | selectattr('columns', 'defined') }}"
+        _tables: "{{ _databases | rejectattr('tables', 'defined') }}"
 
     - name: Verify postgresql foreign data wrapper remotes
       ansible.builtin.assert:
         that: (_databases | length) == (_remotes | length)
         fail_msg: "Remote database should be unique"
       vars:
-        _databases: "{{ _patroni_cluster_fdw }}"
+        _databases: "{{ _patroni_cluster_fdw_databases }}"
         _remotes: "{{ _databases | map(attribute='remote') | flatten | unique }}"
 
     - name: Set PostgreSQL facts
@@ -54,7 +58,7 @@
         _name: "{{ item.source }}"
       loop_control:
         label: "{{ _name }}"
-      loop: "{{ _patroni_cluster_fdw }}"
+      loop: "{{ _patroni_cluster_fdw_databases }}"
       become_user: "{{ _postgresql_user }}"
       register: _postgresql_db_source_query
 
@@ -76,9 +80,40 @@
         _db_source: "{{ item.source }}"
       loop_control:
         label: "{{ _db_source }}"
-      loop: "{{ _patroni_cluster_fdw }}"
+      loop: "{{ _patroni_cluster_fdw_databases }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_server_results
+
+    - name: Query existing user mappings
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT * FROM pg_user_mapping;
+        login_db: "{{ _db_source }}"
+      vars:
+        _db_source: "{{ item.source }}"
+      loop_control:
+        label: "{{ _db_source }}"
+      loop: "{{ _patroni_cluster_fdw_databases }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_user_results
+
+    - name: Set default FDW user mappings fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_user_mappings: []
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _map_format: "nephelaiio.plugins.map_format"
+
+    - name: Set existing FDW user mappings fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + [_options_dict] }}"
+      vars:
+        _query: "{{ item.query_result | default([]) }}"
+        _options: "{{ _query | map(attribute='umoptions') | flatten }}"
+        _options_split: "{{ _options | map('regex_replace', '=', ':') | map('split', ':') }}"
+        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() }}"
+      loop_control:
+        label: "{{ item.item.remote }}"
+      loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
 
     - name: Set PostgreSQL FDW facts
       ansible.builtin.set_fact:
@@ -86,31 +121,29 @@
         _patroni_cluster_fdw_create: "{{ _create }}"
         _patroni_cluster_fdw_delete: "{{ _delete }}"
       vars:
-        _to_dict: "nephelaiio.plugins.to_dict"
-        _map_format: "nephelaiio.plugins.map_format"
-        _map_defaults:
+        _map_fdw_defaults:
           state: present
           extension: postgres_fdw
           password_required: true
-        _cluster_fdw: "{{ _patroni_cluster_fdw }}"
-        _fdw_defaults: "{{ [_map_defaults] | product(_cluster_fdw) | map('combine') | sort(attribute='remote') }}"
+        _cluster_fdw: "{{ _patroni_cluster_fdw_databases }}"
+        _fdw_defaults: "{{ [_map_fdw_defaults] | product(_cluster_fdw) | map('combine') | sort(attribute='remote') }}"
         _remote_dbs: "{{ _fdw_defaults | map(attribute='remote') | map('lower') }}"
         _remote_dict: "{{ _remote_dbs | map(_to_dict, 'remote') }}"
-        _remotes_list: "{{ _fdw_defaults | zip(_remote_dict) | map('combine') }}"
+        _remotes: "{{ _fdw_defaults | zip(_remote_dict) | map('combine') }}"
         _remote_format: "{{ _remote_dbs | map(_map_format, '%s_server') }}"
         _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') }}"
         _server_names_dict: "{{ _remote_regex | map(_to_dict, 'server_name') }}"
-        _server_names_list: "{{ _remotes_list | zip(_server_names_dict) | map('combine') }}"
-        _source_dbs: "{{ _server_names_list | map(attribute='source') | map('lower') }}"
+        _server_names: "{{ _remotes | zip(_server_names_dict) | map('combine') }}"
+        _source_dbs: "{{ _server_names | map(attribute='source') | map('lower') }}"
         _source_dict: "{{ _source_dbs | map(_to_dict, 'source') }}"
-        _sources_list: "{{ _server_names_list | zip(_source_dict) | map('combine') }}"
-        _targets: "{{ _sources_list | selectattr('state', 'equalto', 'present') }}"
+        _cluster_fdw_overwritten: "{{ _server_names | zip(_source_dict) | map('combine') }}"
+        _targets: "{{ _cluster_fdw_overwritten | selectattr('state', 'equalto', 'present') }}"
         _query_server: "{{ _patroni_fdw_server_results.results | default([]) }}"
         _query_server_results: "{{ _query_server | selectattr('query_result', 'defined') | map(attribute='query_result') | flatten }}"
         _srvnames: "{{ _query_server_results | selectattr('srvname', 'defined') | map(attribute='srvname') | flatten }}"
         _update: "{{ _targets | selectattr('server_name', 'in', _srvnames) }}"
         _create: "{{ _targets | difference(_update) }}"
-        _delete: "{{ _sources_list | difference(_targets) | selectattr('server_name', 'in', _srvnames) }}"
+        _delete: "{{ _cluster_fdw_overwritten | difference(_targets) | selectattr('server_name', 'in', _srvnames) }}"
 
     - name: Verify postgresql foreign data wrapper user mapping password defined
       ansible.builtin.assert:
@@ -181,35 +214,6 @@
       register: _patroni_fdw_results
       changed_when: false
 
-    - name: Query existing user mappings
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT * FROM pg_user_mapping;
-        login_db: "{{ _db_source }}"
-      vars:
-        _db_source: "{{ item.source }}"
-      loop_control:
-        label: "{{ _db_source }}"
-      loop: "{{ _patroni_cluster_fdw }}"
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_fdw_user_results
-
-    - name: Set default FDW user mappings fact
-      ansible.builtin.set_fact:
-        _patroni_fdw_existing_user_mappings: []
-
-    - name: Set existing FDW user mappings fact
-      ansible.builtin.set_fact:
-        _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + [_options_dict] }}"
-      vars:
-        _query: "{{ item.query_result | default([]) }}"
-        _options: "{{ _query | map(attribute='umoptions') | flatten }}"
-        _options_split: "{{ _options | map('regex_replace', '=', ':') | map('split', ':') }}"
-        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() }}"
-      loop_control:
-        label: "{{ item.item.remote }}"
-      loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
-
     - name: Create PostgreSQL user mappings
       community.postgresql.postgresql_query:
         login_db: "{{ _db_source }}"
@@ -244,8 +248,9 @@
           OPTIONS (SET user '{{ _username }}', {{ _password_filter }});
         autocommit: true
       vars:
-        _users: "{{ _patroni_fdw_existing_user_mappings | rejectattr('password_required') }}"
-        _existing_users: "{{ _users | map(attribute='user') }}"
+        _users: "{{ _patroni_fdw_existing_user_mappings | selectattr('password_required', 'defined') }}"
+        _password_enabled_users: "{{ _users | rejectattr('password_required') }}"
+        _existing_users: "{{ _password_enabled_users | map(attribute='user') }}"
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
         _username: "{{ item.username }}"

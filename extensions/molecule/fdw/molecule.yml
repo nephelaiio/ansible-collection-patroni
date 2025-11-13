@@ -110,7 +110,9 @@ provisioner:
           patroni_watchdog_mode: off
           patroni_molecule_username: fdw
           patroni_molecule_password: molecule
-          patroni_molecule_database: test
+          patroni_molecule_database: molecule
+          patroni_test_database: test
+          patroni_bla_database: bla
           patroni_barman_verify: true
           patroni_cluster_roles:
             - name: "{{ patroni_molecule_username }}"
@@ -120,16 +122,46 @@ provisioner:
               roles:
                 - name: "{{ patroni_molecule_username }}"
                   privs: ALL
+            - name: "{{ patroni_test_database }}"
+              roles:
+                - name: "{{ patroni_molecule_username }}"
+                  privs: ALL
+            - name: "{{ patroni_bla_database }}"
+              roles:
+                - name: "{{ patroni_molecule_username }}"
+                  privs: ALL
           patroni_cluster_fdw:
             - source: "{{ patroni_molecule_database }}"
               remote: "{{ patroni_molecule_database }}"
               username: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
-              table: test
-              schema: public
-              columns:
-                - Username character varying(50) NOT NULL
-                - CountryId integer NOT NULL
+              tables:
+                test:
+                  columns:
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
+                final:
+                  columns:
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
+            - source: "{{ patroni_test_database }}"
+              remote: "{{ patroni_test_database }}"
+              username: "{{ patroni_molecule_username }}"
+              password: "{{ patroni_molecule_password }}"
+              tables:
+                new:
+                  columns:
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
+            - source: "{{ patroni_bla_database }}"
+              remote: "{{ patroni_bla_database }}"
+              username: "{{ patroni_molecule_username }}"
+              password: "{{ patroni_molecule_password }}"
+              tables:
+                bla:
+                  columns:
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
 verifier:
   name: ansible
 scenario:
