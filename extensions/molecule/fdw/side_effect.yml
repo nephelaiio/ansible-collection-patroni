@@ -13,17 +13,26 @@
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
 
+    - name: Set PostgreSQL FDW fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_databases: "{{ _tables_overwritten }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw | sort(attribute='remote') }}"
+        _tables: "{{ _fdw | map(attribute='tables') | map('dict2items') }}"
+        _tables_dict: "{{ _tables | map('nephelaiio.plugins.to_dict', 'tables') }}"
+        _tables_overwritten: "{{ _fdw | zip(_tables_dict) | map('combine') }}"
+
     - name: Create schemas
       community.postgresql.postgresql_schema:
         login_db: "{{ _db }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         name: "{{ _name }}"
       vars:
-        _name: "{{ item.schema }}"
+        _name: "{{ item.schema | default('public') }}"
         _db: "{{ item.source }}"
       loop_control:
         label: "Schema: {{ _name }} - Database: {{ _db }}"
-      loop: "{{ _patroni_cluster_fdw }}"
+      loop: "{{ _patroni_fdw_databases }}"
       become_user: "{{ _postgresql_user }}"
 
     - name: Create tables
@@ -31,13 +40,13 @@
         login_db: "{{ _db }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         name: "{{ _name }}"
-        columns: "{{ item.columns }}"
+        columns: "{{ item.1.value.columns }}"
       vars:
-        _name: "{{ item.table }}"
-        _db: "{{ item.source }}"
+        _name: "{{ item.1.key }}"
+        _db: "{{ item.0.source }}"
       loop_control:
         label: "Table: {{ _name }} - Database: {{ _db }}"
-      loop: "{{ _patroni_cluster_fdw }}"
+      loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
 
 - name: Run nephelaiio.patroni.fdw playbook
