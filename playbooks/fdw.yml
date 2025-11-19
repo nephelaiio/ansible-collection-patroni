@@ -180,7 +180,7 @@
         _patroni_fdw_delete_tables: "{{ _patroni_fdw_delete_tables + [_map_tables] }}"
       vars:
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
-        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
+        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_delete }}"
         _tables: "{{ _fdw | selectattr('source', 'equalto', item.source) }}"
         _table_names: "{{ _tables | map(attribute='tables') | flatten }}"
         _table_keys: "{{ _table_names | map(attribute='key') | flatten }}"
@@ -341,29 +341,13 @@
         _target_tables: "{{ _fdw | map(attribute='tables') | flatten }}"
         _target_table_names: "{{ _target_tables | map(attribute='key') | flatten }}"
         _target_tables_format: "{{ _target_table_names | map(_map_format, '%s_remote') }}"
-        _existing_tables: "{{ _patroni_fdw_existing_tables }}"
-        _create_tables: "{{ _existing_tables | selectattr('source', 'equalto', _db_source) }}"
-        _create_table_names: "{{ _create_tables | map(attribute='tables') | flatten }}"
+        _existing_tables: "{{ _patroni_fdw_existing_tables | selectattr('source', 'equalto', _db_source) }}"
+        _existing_table_names: "{{ _existing_tables | map(attribute='tables') | flatten }}"
       loop_control:
         label: "{{ _server_name }} - {{ _table_name }}"
       loop: "{{ _fdw | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
-      when: not _table_name in _create_table_names
-
-    - name: Drop PostgreSQL stale foreign tables
-      community.postgresql.postgresql_query:
-        login_db: "{{ _db_source }}"
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: >-
-          DROP FOREIGN TABLE {{ _table_name }};
-        autocommit: true
-      vars:
-        _db_source: "{{ item.0.source }}"
-        _table_name: "{{ item.1 }}"
-      loop_control:
-        label: "{{ _table_name }}"
-      loop: "{{ _patroni_fdw_delete_tables | subelements('tables') }}"
-      become_user: "{{ _postgresql_user }}"
+      when: not _table_name in _existing_table_names
 
     - name: Drop PostgreSQL foreign tables
       community.postgresql.postgresql_query:
@@ -374,13 +358,13 @@
         autocommit: true
       vars:
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
-        _server_name: "{{ item.0.server_name }}"
+        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
         _db_source: "{{ item.0.source }}"
-        _table: "{{ item.1 }}"
-        _table_name: "{{ _table.key }}_{{ _suffix }}"
+        _table_key: "{{ item.1.key }}_{{ _suffix }}"
+        _table_name: "{{ _table_key if (item.1.key is defined) else item.1 }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _table_name }}"
-      loop: "{{ _patroni_cluster_fdw_delete | subelements('tables') }}"
+        label: "{{ _table_name }}"
+      loop: "{{ _delete_tables | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
 
     - name: Drop PostgreSQL user mappings
