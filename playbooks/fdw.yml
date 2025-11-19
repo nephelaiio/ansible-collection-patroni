@@ -155,18 +155,24 @@
           state: present
           extension: postgres_fdw
           password_required: true
+        _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
+        _app_name_suffix: "{{ _patroni_cluster_fdw_app_name_suffix }}"
         _cluster_fdw: "{{ _patroni_cluster_fdw_databases }}"
         _fdw_defaults: "{{ [_map_fdw_defaults] | product(_cluster_fdw) | map('combine') | sort(attribute='remote') }}"
         _remote_dbs: "{{ _fdw_defaults | map(attribute='remote') | map('lower') }}"
         _remote_dict: "{{ _remote_dbs | map(_to_dict, 'remote') }}"
         _remotes: "{{ _fdw_defaults | zip(_remote_dict) | map('combine') }}"
-        _remote_format: "{{ _remote_dbs | map(_map_format, '%s_server') }}"
+        _remote_format: "{{ _remote_dbs | map(_map_format, '%s_' + _server_suffix) }}"
         _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') }}"
         _server_names_dict: "{{ _remote_regex | map(_to_dict, 'server_name') }}"
         _server_names: "{{ _remotes | zip(_server_names_dict) | map('combine') }}"
-        _source_dbs: "{{ _server_names | map(attribute='source') | map('lower') }}"
-        _source_dict: "{{ _source_dbs | map(_to_dict, 'source') }}"
-        _cluster_fdw_overwritten: "{{ _server_names | zip(_source_dict) | map('combine') }}"
+        _source_lower: "{{ _server_names | map(attribute='source') | map('lower') }}"
+        _source_dict: "{{ _source_lower | map(_to_dict, 'source') }}"
+        _source_names: "{{ _server_names | zip(_source_dict) | map('combine') }}"
+        _app_names: "{{ _source_names | map(attribute='source') }}"
+        _app_names_format: "{{ _app_names | map(_map_format, _app_name_suffix + '_%s') }}"
+        _app_names_dict: "{{ _app_names_format | map(_to_dict, 'application_name') }}"
+        _cluster_fdw_overwritten: "{{ _source_names | zip(_app_names_dict) | map('combine') }}"
         _targets: "{{ _cluster_fdw_overwritten | selectattr('state', 'equalto', 'present') }}"
         _query_server: "{{ _patroni_fdw_server_results.results | default([]) }}"
         _query_server_results: "{{ _query_server | selectattr('query_result', 'defined') | map(attribute='query_result') | flatten }}"
@@ -225,7 +231,8 @@
           CREATE SERVER {{ _server_name }}
           FOREIGN DATA WRAPPER {{ _extension }}
           OPTIONS (host '{{ _host }}', dbname '{{ _db_remote }}', fetch_size '{{ _fetch_size }}',
-          port '{{ _slave_port }}', updatable '{{ _updatable }}', truncatable '{{ _truncatable }}');
+          port '{{ _slave_port }}', updatable '{{ _updatable }}', truncatable '{{ _truncatable }}',
+          application_name '{{ _app_name }}');
         autocommit: true
       vars:
         _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
@@ -237,8 +244,9 @@
         _updatable: "{{ item.updatable | default('true') }}"
         _truncatable: "{{ item.truncatable | default('true') }}"
         _fetch_size: "{{ item.fetch_size | default('100') }}"
+        _app_name: "{{ item.application_name }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _host }}"
+        label: "{{ _server_name }} - {{ _host }} - {{ _app_name }}"
       loop: "{{ _patroni_cluster_fdw_create }}"
       become_user: "{{ _postgresql_user }}"
       when: _extension == 'postgres_fdw'
@@ -249,8 +257,10 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
           ALTER SERVER {{ _server_name }}
-          OPTIONS (SET host '{{ _host }}', SET dbname '{{ _db_remote }}', SET port '{{ _slave_port }}',
-          SET updatable '{{ _updatable }}', SET truncatable '{{ _truncatable }}', SET fetch_size '{{ _fetch_size }}');
+          OPTIONS (SET host '{{ _host }}', SET dbname '{{ _db_remote }}',
+          SET port '{{ _slave_port }}', SET updatable '{{ _updatable }}',
+          SET truncatable '{{ _truncatable }}', SET fetch_size '{{ _fetch_size }}',
+          SET application_name '{{ _app_name }}');
         autocommit: true
       vars:
         _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
@@ -262,8 +272,9 @@
         _updatable: "{{ item.updatable | default('true') }}"
         _truncatable: "{{ item.truncatable | default('true') }}"
         _fetch_size: "{{ item.fetch_size | default('100') }}"
+        _app_name: "{{ item.application_name }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _host }}"
+        label: "{{ _server_name }} - {{ _host }} - {{ _app_name }}"
       loop: "{{ _patroni_cluster_fdw_update }}"
       become_user: "{{ _postgresql_user }}"
       changed_when: false
