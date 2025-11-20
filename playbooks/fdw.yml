@@ -236,7 +236,7 @@
         autocommit: true
       vars:
         _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
-        _host: "{{ groups['_patroni_cluster_slave'] | first }}"
+        _host: "{{ _patroni_cluster_fdw_server }}"
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
         _db_remote: "{{ item.remote }}"
@@ -264,7 +264,7 @@
         autocommit: true
       vars:
         _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
-        _host: "{{ groups['_patroni_cluster_slave'] | first }}"
+        _host: "{{ _patroni_cluster_fdw_server }}"
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
         _db_remote: "{{ item.remote }}"
