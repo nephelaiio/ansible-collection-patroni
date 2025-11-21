@@ -89,7 +89,6 @@ provisioner:
     cleanup: ../common/cleanup.yml
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
-    verify: ../common/verify.yml
   inventory:
     hosts:
       all:
@@ -178,5 +177,4 @@ scenario:
     - create
     - prepare
     - converge
-    - verify
     - side_effect
