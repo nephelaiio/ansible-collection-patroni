@@ -26,6 +26,7 @@ jobs:
           - update
           - install
           - databases
+          - fdw
         image:
           - distro: jammy
             url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
@@ -35,7 +36,11 @@ jobs:
       - name: Run devbox tests
         uses: pokerops/ansible-utils@master
         with:
-          run: devbox run -- make requirements test MOLECULE_SCENARIO=${{ matrix.scenario }} MOLECULE_KVM_DISTRO=${{ matrix.image.distro }} MOLECULE_KVM_IMAGE=${{ matrix.image.url }}
+          run: |
+            make requirements test \
+              MOLECULE_SCENARIO=${{ matrix.scenario }} \
+              MOLECULE_KVM_DISTRO=${{ matrix.image.distro }} \
+              MOLECULE_KVM_IMAGE=${{ matrix.image.url }}
 
       - name: Upload install logs
         uses: actions/upload-artifact@v4

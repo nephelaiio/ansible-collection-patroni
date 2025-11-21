@@ -251,6 +251,11 @@ _patroni_postgresql_conf_ansible: |
   logging_collector = on
   log_destination = '{{ _patroni_cluster_log_destination }}'
   log_directory = '{{ _patroni_cluster_log_path }}'
+_patroni_cluster_fdw_server: "{{ patroni_cluster_fdw_server | default(groups['_patroni_cluster_slave'].0) }}"
+_patroni_cluster_fdw: "{{ patroni_cluster_fdw | default([]) }}"
+_patroni_cluster_fdw_table_suffix: "{{ patroni_cluster_fdw_table_suffix | default('remote') }}"
+_patroni_cluster_fdw_server_suffix: "{{ patroni_cluster_fdw_server_suffix | default('server') }}"
+_patroni_cluster_fdw_app_name_suffix: "{{ patroni_cluster_fdw_app_name_suffix | default('fdw') }}"
 
 # Hardcoded values
 _patroni_groups_master: "_patroni_cluster_master"
