@@ -98,7 +98,7 @@
 
     - name: Debug existing FDW servers
       ansible.builtin.debug:
-        msg: "{{ _fdw_existing_servers | map(attribute='srvname') }}"
+        msg: "{{ _fdw_existing_servers | selectattr('srvname', 'defined') | map(attribute='srvname') }}"
 
     - name: Debug target FDW servers
       ansible.builtin.debug:
@@ -108,7 +108,7 @@
       ansible.builtin.assert:
         that: _targets | reject('in', _existing) | length == 0
       vars:
-        _existing: "{{ _fdw_existing_servers | map(attribute='srvname') }}"
+        _existing: "{{ _fdw_existing_servers | selectattr('srvname', 'defined') | map(attribute='srvname') }}"
         _targets: "{{ _fdw_target_servers }}"
 
     - name: Query existing user mappings
