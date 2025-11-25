@@ -13,7 +13,7 @@
         _fdw_targets: "{{ _targets }}"
       vars:
         _drop_attrs: "nephelaiio.plugins.drop_attributes"
-        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
+        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create + _patroni_cluster_fdw_delete }}"
         _attrs:
           - password
         _targets: "{{ _fdw | map(_drop_attrs, _attrs) }}"
