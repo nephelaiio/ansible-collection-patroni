@@ -55,7 +55,8 @@ Cluster wide parameters
 | patroni_cluster_log_path                            |               /var/log/patroni | Patroni cluster log directory                                | false    |
 | patroni_cluster_log_destination                     |                 stderr,jsonlog | Patroni cluster log formats                                  | false    |
 | patroni_cluster_hba                                 |                             [] | Patroni cluster hba objects                                  | false    |
-| patroni_cluster_fdw_server                          |                A patroni slave | Patroni cluster Foreign Data Wrapper server                  | false    |
+| patroni_cluster_fdw_server                          |         patroni haproxy server | Patroni cluster Foreign Data Wrapper server                  | false    |
+| patroni_cluster_fdw_port                            |                           5433 | Patroni cluster Foreign Data Wrapper port                    | false    |
 | patroni_cluster_fdw                                 |                             [] | Patroni cluster Foreign Data Wrapper objects                 | false    |
 | patroni_cluster_fdw_table_suffix                    |                       'remote' | Patroni cluster Foreign Data Wrapper table name suffix       | false    |
 | patroni_cluster_fdw_server_suffix                   |                       'server' | Patroni cluster Foreign Data Wrapper server name suffix      | false    |

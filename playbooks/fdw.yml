@@ -246,7 +246,7 @@
           application_name '{{ _app_name }}');
         autocommit: true
       vars:
-        _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+        _slave_port: "{{ _patroni_cluster_fdw_port }}"
         _host: "{{ _patroni_cluster_fdw_server }}"
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
@@ -275,7 +275,7 @@
           SET application_name '{{ _app_name }}');
         autocommit: true
       vars:
-        _slave_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+        _slave_port: "{{ _patroni_cluster_fdw_port }}"
         _host: "{{ _patroni_cluster_fdw_server }}"
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
