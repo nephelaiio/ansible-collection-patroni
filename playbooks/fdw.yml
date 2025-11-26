@@ -197,8 +197,7 @@
         _tables: "{{ _fdw | selectattr('source', 'equalto', item.source) }}"
         _table_names: "{{ _tables | map(attribute='tables') | flatten }}"
         _table_keys: "{{ _table_names | map(attribute='key') | flatten }}"
-        _table_keys_overwritten: "{{ _table_keys | map(_map_format, '%s_' + _suffix) }}"
-        _delete_tables: "{{ item.tables | reject('in', _table_keys_overwritten) }}"
+        _delete_tables: "{{ item.tables | reject('in', _table_keys) }}"
         _map_tables:
           source: "{{ item.source }}"
           remote: "{{ item.remote }}"
@@ -470,8 +469,8 @@
         _db_source: "{{ item.0.source }}"
         _server_name: "{{ item.0.server_name }}"
         _db_remote: "{{ item.0.remote }}"
-        _table_key: "{{ item.1.key }}_{{ _suffix }}"
-        _table_name: "{{ _table_key if (item.1.key is defined) else item.1 }}"
+        _table_key: "{{ item.1.key }}"
+        _table_name: "{{ _table_key if (item.1.key is defined) else item.1 }}_{{ _suffix }}"
       loop_control:
         label: "{{ _server_name }} - {{ _db_remote }} - {{ _table_name }}"
       loop: "{{ _delete_tables | subelements('tables') }}"

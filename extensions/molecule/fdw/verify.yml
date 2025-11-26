@@ -10,13 +10,20 @@
       ansible.builtin.set_fact:
         _fdw_existing_user_mappings: []
         _fdw_existing_tables: []
-        _fdw_targets: "{{ _targets }}"
+        _fdw_targets: "{{ _targets_overwritten }}"
       vars:
         _drop_attrs: "nephelaiio.plugins.drop_attributes"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create + _patroni_cluster_fdw_delete }}"
         _attrs:
           - password
-        _targets: "{{ _fdw | map(_drop_attrs, _attrs) }}"
+        _targets: "{{ _fdw | map(_drop_attrs, _attrs) | sort(attribute='remote') }}"
+        _map_format: "nephelaiio.plugins.map_format"
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
+        _server_names: "{{ _targets | map(attribute='remote') }}"
+        _server_names_format: "{{ _server_names | map(_map_format, '%s_' + _server_suffix) }}"
+        _server_names_dict: "{{ _server_names_format | map(_to_dict, 'remote') }}"
+        _targets_overwritten: "{{ _targets | zip(_server_names_dict) | map('combine') }}"
 
     - name: Query existing FDW servers
       community.postgresql.postgresql_query:
@@ -33,15 +40,10 @@
 
     - name: Set PostgreSQL foreign data wrapper server facts
       ansible.builtin.set_fact:
-        _fdw_target_servers: "{{ _server_names_format }}"
         _fdw_existing_servers: "{{ _query }}"
       vars:
         _results: "{{ _patroni_fdw_server_results.results | default([]) }}"
         _query: "{{ _results | map(attribute='query_result') | flatten }}"
-        _map_format: "nephelaiio.plugins.map_format"
-        _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
-        _server_names: "{{ _fdw_targets | map(attribute='remote') }}"
-        _server_names_format: "{{ _server_names | map(_map_format, '%s_' + _server_suffix) }}"
 
     - name: Debug existing FDW servers
       ansible.builtin.debug:
@@ -49,16 +51,28 @@
 
     - name: Debug target FDW servers
       ansible.builtin.debug:
-        msg: "{{ _fdw_target_servers }}"
+        msg: "{{ _servers }}"
+      vars:
+        _fdw: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
+        _servers: "{{ _fdw | map(attribute='remote') }}"
+
+    - name: Debug FDW servers deleted
+      ansible.builtin.debug:
+        msg: "{{ _servers }}"
+      vars:
+        _fdw: "{{ _fdw_targets | selectattr('state', 'equalto', 'absent') }}"
+        _servers: "{{ _fdw | map(attribute='remote') }}"
 
     - name: Validate PostgreSQL foreign data wrapper servers
       ansible.builtin.assert:
         that:
-          - _targets | reject('in', _existing) | length == 0
+          - _targets | rejectattr('remote', 'in', _existing) | length == 0
           - (_targets | length) == (_existing | length)
+          - _delete | selectattr('remote', 'in', _existing) | length == 0
       vars:
         _existing: "{{ _fdw_existing_servers | selectattr('srvname', 'defined') | map(attribute='srvname') }}"
-        _targets: "{{ _fdw_target_servers }}"
+        _targets: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
+        _delete: "{{ _fdw_targets | difference(_targets) }}"
 
     - name: Query existing user mappings
       community.postgresql.postgresql_query:
@@ -69,7 +83,7 @@
         _db_source: "{{ item.source }}"
       loop_control:
         label: "{{ _db_source }}"
-      loop: "{{ _fdw_targets }}"
+      loop: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_user_results
 
@@ -77,30 +91,48 @@
       ansible.builtin.set_fact:
         _fdw_existing_user_mappings: "{{ _fdw_existing_user_mappings + [_options_dict] }}"
       vars:
+        _default:
+          remote: "{{ item.item.remote }}"
         _query: "{{ item.query_result | default([]) }}"
         _options: "{{ _query | map(attribute='umoptions') | flatten }}"
         _options_split: "{{ _options | map('regex_replace', '=', ':') | map('split', ':') }}"
-        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() }}"
+        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() | combine(_default) }}"
       loop_control:
         label: "{{ item.item.remote }}"
       loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
 
     - name: Debug existing user mappings
       ansible.builtin.debug:
-        msg: "{{ _fdw_existing_user_mappings | map(attribute='user') | unique }}"
+        msg: "{{ _fdw_existing_user_mappings }}"
 
     - name: Debug target user mappings
       ansible.builtin.debug:
-        msg: "{{ _fdw_targets | map(attribute='username') | unique }}"
+        msg: "{{ _users }}"
+      vars:
+        _fdw: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
+        _users: "{{ _fdw | map(attribute='username') | unique }}"
+
+    - name: Debug user mappings deleted
+      ansible.builtin.debug:
+        msg: "{{ _users }}"
+      vars:
+        _fdw: "{{ _fdw_targets | selectattr('state', 'equalto', 'absent') }}"
+        _users: "{{ _fdw | map(attribute='username') | unique }}"
 
     - name: Validate PostgreSQL foreign data wrapper user mappings
       ansible.builtin.assert:
         that:
-          - _targets | rejectattr('username', 'in', _existing) | length == 0
-          - (_target_users | length) == (_existing | length)
+          - _targets | rejectattr('username', 'in', _existing_users) | length == 0
+          - (_target_users | length) == (_existing_users | length)
+          - _delete | selectattr('remote', 'in', _existing_remotes) | length == 0
       vars:
-        _existing: "{{ _fdw_existing_user_mappings | map(attribute='user') | unique }}"
-        _targets: "{{ _fdw_targets }}"
+        _targets: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
+        _delete: "{{ _fdw_targets | difference(_targets) }}"
+        _target_names: "{{ _targets | map(attribute='remote') }}"
+        _existing: "{{ _fdw_existing_user_mappings }}"
+        _existing_remotes: "{{ _existing | map(attribute='remote') }}"
+        _existing_targets: "{{ _existing | selectattr('remote', 'in', _target_names) }}"
+        _existing_users: "{{ _existing | map(attribute='user') | unique }}"
         _target_users: "{{ _targets | map(attribute='username') | unique }}"
 
     - name: Query existing foreign tables
@@ -112,7 +144,7 @@
         _db_source: "{{ item.source }}"
       loop_control:
         label: "{{ _db_source }}"
-      loop: "{{ _fdw_targets }}"
+      loop: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_table_results
 
@@ -137,9 +169,13 @@
 
     - name: Debug target tables
       ansible.builtin.debug:
-        msg: "{{ _fdw_targets }}"
+        msg: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
 
-    - name: Validate PostgreSQL foreign data wrapper tables
+    - name: Debug tables deleted
+      ansible.builtin.debug:
+        msg: "{{ _fdw_targets | selectattr('state', 'equalto', 'absent') }}"
+
+    - name: Validate PostgreSQL foreign data wrapper tables for target databases
       ansible.builtin.assert:
         that:
           - _tables | reject('in', _existing_tables) | length == 0
@@ -147,10 +183,22 @@
       vars:
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
         _source: "{{ item.source }}"
-        _table_keys: "{{ item.tables | map(attribute='key') }}"
-        _tables: "{{ _table_keys | map(_map_format, '%s_' + _suffix) }}"
+        _tables: "{{ item.tables | map(attribute='key') }}"
         _existing_source: "{{ _fdw_existing_tables | selectattr('source', 'equalto', _source) }}"
         _existing_tables: "{{ _existing_source | map(attribute='tables') | flatten }}"
       loop_control:
         label: "{{ _source }}: [{{ _tables | join(', ') }}]"
-      loop: "{{ _fdw_targets }}"
+      loop: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
+
+    - name: Validate PostgreSQL foreign data wrapper tables for databases deleted
+      ansible.builtin.assert:
+        that: _tables | select('in', _existing_tables) | length == 0
+      vars:
+        _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
+        _source: "{{ item.source }}"
+        _tables: "{{ item.tables | map(attribute='key') }}"
+        _existing_source: "{{ _fdw_existing_tables | selectattr('source', 'equalto', _source) }}"
+        _existing_tables: "{{ _existing_source | map(attribute='tables') | flatten }}"
+      loop_control:
+        label: "{{ _source }}: [{{ _tables | join(', ') }}]"
+      loop: "{{ _fdw_targets | selectattr('state', 'equalto', 'absent') }}"
