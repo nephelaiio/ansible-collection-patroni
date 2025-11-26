@@ -285,6 +285,17 @@
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
           until: _patroni_status_query is succeeded
 
+    - name: Manage patroni pgpass
+      ansible.builtin.template:
+        src: "pgpass.j2"
+        dest: "{{ _patroni_cluster_pgpass_path }}"
+        owner: "{{ _postgresql_user }}"
+        group: "{{ _postgresql_group }}"
+        mode: "u=rw,go="
+      vars:
+        _pgpass_settings: "{{ _patroni_cluster_pgpass_settings }}"
+      when: _patroni_cluster_pgpass_settings | length > 0
+
   handlers:
     - name: Reload Patroni
       ansible.builtin.service:

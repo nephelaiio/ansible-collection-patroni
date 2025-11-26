@@ -61,6 +61,8 @@ Cluster wide parameters
 | patroni_cluster_fdw_table_suffix                    |                       'remote' | Patroni cluster Foreign Data Wrapper table name suffix       | false    |
 | patroni_cluster_fdw_server_suffix                   |                       'server' | Patroni cluster Foreign Data Wrapper server name suffix      | false    |
 | patroni_cluster_fdw_app_name_suffix                 |                          'fdw' | Patroni cluster Foreign Data Wrapper application name suffix | false    |
+| patroni_cluster_pgpass_settings                     |                             [] | Patroni cluster pgpass settings                              | false    |
+| patroni_cluster_pgpass_path                         |      '/etc/postgresql/.pgpass' | Patroni cluster pgpass path                                  | false    |
 | patroni_watchdog_enable                             |                           true | Enable watchdog module                                       | false    |
 | patroni_watchdog_mode                               |                      automatic | Patroni watchdog mode                                        | false    |
 | patroni_config_hostnames                            |                           true | Use hostnames for Patroni configuration                      | false    |

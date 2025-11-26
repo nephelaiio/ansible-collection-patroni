@@ -185,10 +185,7 @@
         group: "{{ _patroni_barman_user }}"
         mode: "u=rw,go="
       vars:
-        _conf_db_user: "{{ _patroni_cluster_barman_username }}"
-        _conf_db_pass: "{{ _patroni_cluster_barman_password }}"
-        _conf_backup_host: "127.0.0.1"
-        _conf_backup_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        _pgpass_settings: "{{ _patroni_cluster_barman_pgpass_settings }}"
 
     - name: Update Barman cluster configuration
       block:

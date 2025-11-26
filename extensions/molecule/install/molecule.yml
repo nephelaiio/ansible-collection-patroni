@@ -90,7 +90,6 @@ provisioner:
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
     verify: ../common/verify.yml
-    side_effect: ../common/configure.yml
   inventory:
     hosts:
       all:
@@ -133,6 +132,9 @@ provisioner:
               roles:
                 - name: "{{ patroni_molecule_username }}"
                   privs: ALL
+          patroni_cluster_pgpass_settings:
+            - user: "{{ patroni_molecule_username }}"
+              password: "{{ patroni_molecule_password }}"
 verifier:
   name: ansible
 scenario:
