@@ -109,15 +109,18 @@
         _patroni_fdw_delete_tables: []
         _to_dict: "nephelaiio.plugins.to_dict"
         _map_format: "nephelaiio.plugins.map_format"
+        _drop_attrs: "nephelaiio.plugins.drop_attributes"
 
     - name: Set existing FDW user mappings fact
       ansible.builtin.set_fact:
         _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + [_options_dict] }}"
       vars:
+        _default:
+          remote: "{{ item.item.remote }}"
         _query: "{{ item.query_result | default([]) }}"
         _options: "{{ _query | map(attribute='umoptions') | flatten }}"
         _options_split: "{{ _options | map('regex_replace', '=', ':') | map('split', ':') }}"
-        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() }}"
+        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() | combine(_default) }}"
       loop_control:
         label: "{{ item.item.remote }}"
       loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
@@ -143,7 +146,6 @@
         _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') }}"
         _server_names_dict: "{{ _remote_regex | map(_to_dict, 'server_name') }}"
         _server_names: "{{ _remotes | zip(_server_names_dict) | map('combine') }}"
-        _source_names: "{{ _server_names | zip(_source_dict) | map('combine') }}"
         _app_names: "{{ _server_names | map(attribute='source') }}"
         _app_names_format: "{{ _app_names | map(_map_format, _app_name_suffix + '_%s') }}"
         _app_names_dict: "{{ _app_names_format | map(_to_dict, 'application_name') }}"
@@ -154,7 +156,7 @@
         _srvnames: "{{ _query_server_results | selectattr('srvname', 'defined') | map(attribute='srvname') | flatten }}"
         _update_fdw: "{{ _targets | selectattr('server_name', 'in', _srvnames) }}"
         _create_fdw: "{{ _targets | difference(_update_fdw) }}"
-        _delete_fdw: "{{ _cluster_fdw_overwritten | difference(_targets) | selectattr('server_name', 'in', _srvnames) }}"
+        _delete_fdw: "{{ _cluster_fdw_overwritten | difference(_targets) }}"
 
     - name: Query existing foreign tables
       community.postgresql.postgresql_query:
@@ -198,8 +200,7 @@
         _tables: "{{ _fdw | selectattr('source', 'equalto', item.source) }}"
         _table_names: "{{ _tables | map(attribute='tables') | flatten }}"
         _table_keys: "{{ _table_names | map(attribute='key') | flatten }}"
-        _table_keys_overwritten: "{{ _table_keys | map(_map_format, '%s_' + _suffix) }}"
-        _delete_tables: "{{ item.tables | reject('in', _table_keys_overwritten) }}"
+        _delete_tables: "{{ item.tables | reject('in', _table_keys) }}"
         _map_tables:
           source: "{{ item.source }}"
           remote: "{{ item.remote }}"
@@ -209,6 +210,48 @@
       loop_control:
         label: "{{ item.source }}"
       loop: "{{ _patroni_fdw_existing_tables | default([]) }}"
+      when: _delete_tables | length > 0
+
+    - name: Debug existing foreign data wrapper servers
+      ansible.builtin.debug:
+        msg: "{{ _server_names }}"
+      vars:
+        _query_server: "{{ _patroni_fdw_server_results.results | default([]) }}"
+        _query_server_select: "{{ _query_server | selectattr('query_result', 'defined') }}"
+        _query_server_results: "{{ _query_server_select | map(attribute='query_result') | flatten }}"
+        _server_names: "{{ _query_server_results | selectattr('srvname', 'defined') | map(attribute='srvname') | flatten }}"
+
+    - name: Debug existing user mappings
+      ansible.builtin.debug:
+        msg: "{{ _users }}"
+      vars:
+        _users: "{{ _patroni_fdw_existing_user_mappings | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug existing foreign tables
+      ansible.builtin.debug:
+        msg: "{{ _patroni_fdw_existing_tables }}"
+
+    - name: Debug new foreign data wrappers
+      ansible.builtin.debug:
+        msg: "{{ _fdw }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw_create | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug foreign data wrapper targets
+      ansible.builtin.debug:
+        msg: "{{ _fdw }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw_update | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug foreign data wrappers to delete
+      ansible.builtin.debug:
+        msg: "{{ _fdw }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw_delete | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug foreign tables to delete
+      ansible.builtin.debug:
+        msg: "{{ _patroni_fdw_delete_tables }}"
 
     - name: Verify postgresql foreign data wrapper user mapping password defined
       ansible.builtin.assert:
@@ -350,7 +393,7 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          CREATE FOREIGN TABLE {{ _table_name }}
+          CREATE FOREIGN TABLE {{ _object_name }}
           ({{ _columns }})
           SERVER {{ _server_name }}
           OPTIONS (schema_name '{{ _schema_name }}', table_name '{{ _table_name }}');
@@ -360,7 +403,8 @@
         _server_name: "{{ item.0.server_name }}"
         _db_source: "{{ item.0.source }}"
         _table: "{{ item.1 }}"
-        _table_name: "{{ _table.key }}_{{ _suffix }}"
+        _table_name: "{{ _table.key }}"
+        _object_name: "{{ _table_name }}_{{ _suffix }}"
         _columns: "{{ _table.value.columns | join(', ') }}"
         _schema_name: "{{ item.0.schema | default('public') }}"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
@@ -370,7 +414,7 @@
         _existing_tables: "{{ _patroni_fdw_existing_tables | selectattr('source', 'equalto', _db_source) }}"
         _existing_table_names: "{{ _existing_tables | map(attribute='tables') | flatten }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _table_name }}"
+        label: "{{ _server_name }} - {{ _object_name }} - {{ _table_name }}"
       loop: "{{ _fdw | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       when: not _table_name in _existing_table_names
@@ -470,8 +514,8 @@
         _db_source: "{{ item.0.source }}"
         _server_name: "{{ item.0.server_name }}"
         _db_remote: "{{ item.0.remote }}"
-        _table_key: "{{ item.1.key }}_{{ _suffix }}"
-        _table_name: "{{ _table_key if (item.1.key is defined) else item.1 }}"
+        _table_key: "{{ item.1.key }}"
+        _table_name: "{{ _table_key if (item.1.key is defined) else item.1 }}_{{ _suffix }}"
       loop_control:
         label: "{{ _server_name }} - {{ _db_remote }} - {{ _table_name }}"
       loop: "{{ _delete_tables | subelements('tables') }}"
