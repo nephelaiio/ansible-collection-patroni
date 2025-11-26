@@ -109,15 +109,18 @@
         _patroni_fdw_delete_tables: []
         _to_dict: "nephelaiio.plugins.to_dict"
         _map_format: "nephelaiio.plugins.map_format"
+        _drop_attrs: "nephelaiio.plugins.drop_attributes"
 
     - name: Set existing FDW user mappings fact
       ansible.builtin.set_fact:
         _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + [_options_dict] }}"
       vars:
+        _default:
+          remote: "{{ item.item.remote }}"
         _query: "{{ item.query_result | default([]) }}"
         _options: "{{ _query | map(attribute='umoptions') | flatten }}"
         _options_split: "{{ _options | map('regex_replace', '=', ':') | map('split', ':') }}"
-        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() }}"
+        _options_dict: "{{ _options_split | nephelaiio.plugins.to_dict() | combine(_default) }}"
       loop_control:
         label: "{{ item.item.remote }}"
       loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
@@ -207,6 +210,48 @@
       loop_control:
         label: "{{ item.source }}"
       loop: "{{ _patroni_fdw_existing_tables | default([]) }}"
+      when: _delete_tables | length > 0
+
+    - name: Debug existing foreign data wrapper servers
+      ansible.builtin.debug:
+        msg: "{{ _server_names }}"
+      vars:
+        _query_server: "{{ _patroni_fdw_server_results.results | default([]) }}"
+        _query_server_select: "{{ _query_server | selectattr('query_result', 'defined') }}"
+        _query_server_results: "{{ _query_server_select | map(attribute='query_result') | flatten }}"
+        _server_names: "{{ _query_server_results | selectattr('srvname', 'defined') | map(attribute='srvname') | flatten }}"
+
+    - name: Debug existing user mappings
+      ansible.builtin.debug:
+        msg: "{{ _users }}"
+      vars:
+        _users: "{{ _patroni_fdw_existing_user_mappings | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug existing foreign tables
+      ansible.builtin.debug:
+        msg: "{{ _patroni_fdw_existing_tables }}"
+
+    - name: Debug new foreign data wrappers
+      ansible.builtin.debug:
+        msg: "{{ _fdw }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw_create | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug foreign data wrapper targets
+      ansible.builtin.debug:
+        msg: "{{ _fdw }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw_update | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug foreign data wrappers to delete
+      ansible.builtin.debug:
+        msg: "{{ _fdw }}"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw_delete | map(_drop_attrs, ['password']) }}"
+
+    - name: Debug foreign tables to delete
+      ansible.builtin.debug:
+        msg: "{{ _patroni_fdw_delete_tables }}"
 
     - name: Verify postgresql foreign data wrapper user mapping password defined
       ansible.builtin.assert:
