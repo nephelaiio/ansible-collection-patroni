@@ -68,6 +68,17 @@ _patroni_cluster_databases: "{{ patroni_cluster_databases | default([]) }}"
 _patroni_cluster_barman_slot: barman
 _patroni_cluster_barman_archiver: "{{ patroni_cluster_barman_archiver | default('on') }}"
 _patroni_cluster_barman_streaming_archiver: "{{ patroni_cluster_barman_streaming_archiver | default('on') }}"
+_patroni_cluster_barman_pgpass_settings:
+  - user: "{{ _patroni_cluster_barman_username }}"
+    password: "{{ _patroni_cluster_barman_password }}"
+    host: "127.0.0.1"
+    port: "{{ _patroni_haproxy_port_psql_master_local }}"
+    database: postgres
+  - user: "{{ _patroni_cluster_barman_username }}"
+    password: "{{ _patroni_cluster_barman_password }}"
+    host: "127.0.0.1"
+    port: "{{ _patroni_haproxy_port_psql_master_local }}"
+    database: replication
 
 _patroni_cluster_hba_base:
   - type: local
@@ -257,6 +268,8 @@ _patroni_cluster_fdw: "{{ patroni_cluster_fdw | default([]) }}"
 _patroni_cluster_fdw_table_suffix: "{{ patroni_cluster_fdw_table_suffix | default('remote') }}"
 _patroni_cluster_fdw_server_suffix: "{{ patroni_cluster_fdw_server_suffix | default('server') }}"
 _patroni_cluster_fdw_app_name_suffix: "{{ patroni_cluster_fdw_app_name_suffix | default('fdw') }}"
+_patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default([]) }}"
+_patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 
 # Hardcoded values
 _patroni_groups_master: "_patroni_cluster_master"

@@ -1,6 +1,50 @@
 ---
-- name: Import install playbook
-  ansible.builtin.import_playbook: nephelaiio.patroni.install
+- name: Import configuration playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
 
-- name: Import database playbook
-  ansible.builtin.import_playbook: nephelaiio.patroni.databases
+- name: Manage pgpass file
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Safely execute postgresql query command without authentication
+      block:
+        - name: Attempt postgresql query without authentication
+          community.postgresql.postgresql_query:
+            login_db: "{{ patroni_molecule_database }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            login_user: "{{ patroni_molecule_username }}"
+            login_host: 127.0.0.1
+            query: SELECT * FROM pg_catalog.pg_database;
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _postgresql_query_result
+
+      rescue:
+        - name: Verify postgresql query without authentication
+          ansible.builtin.assert:
+            that: _query is search('no password supplied')
+          vars:
+            _query: "{{ _postgresql_query_result.msg | default('') }}"
+
+    - name: Run psql command with pgpassfile
+      community.postgresql.postgresql_query:
+        login_db: "{{ patroni_molecule_database }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        login_user: "{{ patroni_molecule_username }}"
+        login_host: 127.0.0.1
+        query: SELECT * FROM pg_catalog.pg_database;
+        connect_params:
+          passfile: "{{ _patroni_cluster_pgpass_path }}"
+      become: true
+      become_user: "{{ _postgresql_user }}"
+      register: _postgresql_query_result
+
+    - name: Verify postgresql query with pgpass
+      ansible.builtin.assert:
+        that: (not _failed | bool) and (_query_result | length > 0)
+      vars:
+        _query: "{{ _postgresql_query_result | default({}) }}"
+        _failed: "{{ _query.failed | default('false') }}"
+        _query_result: "{{ _query.query_result | default([]) }}"
