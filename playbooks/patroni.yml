@@ -285,16 +285,26 @@
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
           until: _patroni_status_query is succeeded
 
-    - name: Manage patroni pgpass
-      ansible.builtin.template:
-        src: "pgpass.j2"
-        dest: "{{ _patroni_cluster_pgpass_path }}"
-        owner: "{{ _postgresql_user }}"
-        group: "{{ _postgresql_group }}"
-        mode: "u=rw,go="
-      vars:
-        _pgpass_settings: "{{ _patroni_cluster_pgpass_settings }}"
+    - name: Manage PostgreSQL pgpass file tasks
       when: _patroni_cluster_pgpass_settings | length > 0
+      block:
+        - name: Verify pgpass parameters required
+          ansible.builtin.assert:
+            that:
+              - _settings | rejectattr('user', 'defined') | length == 0
+              - _settings | rejectattr('password', 'defined') | length == 0
+          vars:
+            _settings: "{{ _patroni_cluster_pgpass_settings }}"
+
+        - name: Manage patroni pgpass
+          ansible.builtin.template:
+            src: "pgpass.j2"
+            dest: "{{ _patroni_cluster_pgpass_path }}"
+            owner: "{{ _postgresql_user }}"
+            group: "{{ _postgresql_group }}"
+            mode: "u=rw,go="
+          vars:
+            _pgpass_settings: "{{ _patroni_cluster_pgpass_settings }}"
 
   handlers:
     - name: Reload Patroni

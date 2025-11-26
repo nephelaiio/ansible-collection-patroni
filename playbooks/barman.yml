@@ -177,6 +177,15 @@
         _conf_compression: "{{ _patroni_barman_conf_compression }}"
         _conf_extra: "{{ _patroni_barman_conf_include }}"
 
+    - name: Verify pgpass parameters required
+      ansible.builtin.assert:
+        that:
+          - _patroni_cluster_barman_pgpass_settings | length > 0
+          - _settings | rejectattr('user', 'defined') | length == 0
+          - _settings | rejectattr('password', 'defined') | length == 0
+      vars:
+        _settings: "{{ _patroni_cluster_barman_pgpass_settings }}"
+
     - name: Manage Barman pgpass
       ansible.builtin.template:
         src: "pgpass.j2"
