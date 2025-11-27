@@ -406,7 +406,7 @@
         _table_name: "{{ _table.key }}"
         _object_name: "{{ _table_name }}_{{ _suffix }}"
         _columns: "{{ _table.value.columns | join(', ') }}"
-        _schema_name: "{{ item.0.schema | default('public') }}"
+        _schema_name: "{{ _table.value.schema | default('public') }}"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
         _target_tables: "{{ _fdw | map(attribute='tables') | flatten }}"
         _target_table_names: "{{ _target_tables | map(attribute='key') | flatten }}"

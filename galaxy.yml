@@ -1,7 +1,7 @@
 ---
 namespace: nephelaiio
 name: patroni
-version: 0.3.9
+version: 0.3.10
 readme: README.md
 authors:
   - Ted Cook <358176+teddyphreak@users.noreply.github.com>

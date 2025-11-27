@@ -28,11 +28,11 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         name: "{{ _name }}"
       vars:
-        _name: "{{ item.schema | default('public') }}"
-        _db: "{{ item.source }}"
+        _name: "{{ item.1.value.schema | default('public') }}"
+        _db: "{{ item.0.source }}"
       loop_control:
         label: "Schema: {{ _name }} - Database: {{ _db }}"
-      loop: "{{ _patroni_fdw_databases }}"
+      loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
 
     - name: Create tables
