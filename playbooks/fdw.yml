@@ -212,6 +212,36 @@
       loop: "{{ _patroni_fdw_existing_tables | default([]) }}"
       when: _delete_tables | length > 0
 
+    - name: Query existing PostgreSQL schemas
+      community.postgresql.postgresql_query:
+        login_db: "{{ _db_source }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: >-
+          SELECT schema_name FROM information_schema.schemata;
+        autocommit: true
+      vars:
+        _db_source: "{{ item.source }}"
+      loop_control:
+        label: "{{ _db_source }}"
+      loop: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_schemas
+      no_log: "{{ _patroni_nolog }}"
+
+    - name: Verify PostgreSQL schemas for databases
+      ansible.builtin.assert:
+        that: _schemas_filter | length == 0
+        fail_msg: "There are missing schemas: {{ _schemas_filter }}"
+      vars:
+        _results: "{{ _patroni_fdw_schemas.results | default([]) }}"
+        _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
+        _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
+        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
+        _tables: "{{ _fdw | map(attribute='tables') | flatten }}"
+        _target_schemas: "{{ _tables | selectattr('value.schema', 'defined') | map(attribute='value.schema') | lower }}"
+        _target_schemas_default: "{{ _target_schemas + ['public'] | unique }}"
+        _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
+
     - name: Debug existing foreign data wrapper servers
       ansible.builtin.debug:
         msg: "{{ _server_names }}"
