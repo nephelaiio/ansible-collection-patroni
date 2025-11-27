@@ -143,7 +143,7 @@
         _remote_dict: "{{ _remote_dbs | map(_to_dict, 'remote') }}"
         _remotes: "{{ _fdw_defaults | zip(_remote_dict) | map('combine') }}"
         _remote_format: "{{ _remote_dbs | map(_map_format, '%s_' + _server_suffix) }}"
-        _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') }}"
+        _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') | map('lower') }}"
         _server_names_dict: "{{ _remote_regex | map(_to_dict, 'server_name') }}"
         _server_names: "{{ _remotes | zip(_server_names_dict) | map('combine') }}"
         _app_names: "{{ _server_names | map(attribute='source') }}"
