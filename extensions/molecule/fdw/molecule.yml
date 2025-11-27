@@ -111,7 +111,7 @@ provisioner:
           patroni_molecule_password: molecule
           patroni_molecule_database: molecule
           patroni_test_database: test
-          patroni_bla_database: bla
+          patroni_bla_database: BlaDB
           patroni_barman_verify: true
           patroni_cluster_roles:
             - name: "{{ patroni_molecule_username }}"
