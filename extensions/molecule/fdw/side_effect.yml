@@ -28,7 +28,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         name: "{{ _name }}"
       vars:
-        _name: "{{ item.1.value.schema | default('public') }}"
+        _name: "{{ item.1.value.source_schema | default('public') }}"
         _db: "{{ item.0.source }}"
       loop_control:
         label: "Schema: {{ _name }} - Database: {{ _db }}"
@@ -90,6 +90,8 @@
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
+                source_schema: blah
+                remote_schema: test1
 
 - name: Run nephelaiio.patroni.fdw playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.fdw
@@ -133,6 +135,8 @@
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
+                source_schema: blah
+                remote_schema: test1
 
 - name: Run nephelaiio.patroni.fdw playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.fdw
