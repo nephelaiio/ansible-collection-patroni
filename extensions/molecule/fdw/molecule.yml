@@ -161,7 +161,8 @@ provisioner:
                   columns:
                     - Username character varying(50) NOT NULL
                     - CountryId integer NOT NULL
-                  schema: test1
+                  source_schema: blah
+                  remote_schema: test1
 verifier:
   name: ansible
 scenario:
