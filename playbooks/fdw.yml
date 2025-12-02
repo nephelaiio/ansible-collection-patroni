@@ -545,7 +545,8 @@
         _server_name: "{{ item.0.server_name }}"
         _db_remote: "{{ item.0.remote }}"
         _table_key: "{{ item.1.key }}"
-        _table_name: "{{ _table_key if (item.1.key is defined) else item.1 }}_{{ _suffix }}"
+        _schema: "{{ item.1.value.source_schema | default('public') }}"
+        _table_name: "{{ _schema }}.{{ _table_key if (item.1.key is defined) else item.1 }}_{{ _suffix }}"
       loop_control:
         label: "{{ _server_name }} - {{ _db_remote }} - {{ _table_name }}"
       loop: "{{ _delete_tables | subelements('tables') }}"
