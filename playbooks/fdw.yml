@@ -210,10 +210,12 @@
         _patroni_fdw_delete_tables: "{{ _patroni_fdw_delete_tables + [_map_tables] }}"
       vars:
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_delete }}"
+        _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
         _target_server: "{{ _fdw | selectattr('source', 'equalto', item.source) }}"
         _target_tables: "{{ _target_server | map(attribute='tables') | flatten | map(attribute='key') | flatten }}"
-        _existing_tables: "{{ item.tables | selectattr('option_name', 'equalto', 'table_name') }}"
-        _delete_tables: "{{ _existing_tables | rejectattr('option_value', 'in', _target_tables) }}"
+        _target_tables_format: "{{ _target_tables | map(_map_format, '%s_' + _suffix) }}"
+        _filter_tables: "{{ item.tables | rejectattr('foreign_table_name', 'in', _target_tables_format) }}"
+        _delete_tables: "{{ _filter_tables | selectattr('option_name', 'equalto', 'table_name') }}"
         _map_tables:
           source: "{{ item.source }}"
           remote: "{{ item.remote }}"
