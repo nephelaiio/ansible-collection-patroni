@@ -276,7 +276,7 @@
 
     - name: Debug existing user mappings
       ansible.builtin.debug:
-        msg: "{{ _users }}"
+        msg: "{{ _users | selectattr('user', 'defined') }}"
       vars:
         _users: "{{ _patroni_fdw_existing_user_mappings | map(_drop_attrs, ['password']) }}"
 
