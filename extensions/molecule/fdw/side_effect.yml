@@ -68,7 +68,7 @@
             username: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
             tables:
-              test:
+              molecule_table1:
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
@@ -77,21 +77,21 @@
             username: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
             tables:
-              new:
+              test_table1:
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
-          - source: "{{ patroni_bla_database }}"
-            remote: "{{ patroni_bla_database }}"
+          - source: "{{ patroni_bladb_database }}"
+            remote: "{{ patroni_bladb_database }}"
             username: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
             tables:
-              bla:
+              bladb_table1:
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
-                source_schema: blah
-                remote_schema: test1
+                source_schema: bladb_source_schema
+                remote_schema: bladb_remote_schema
 
 - name: Run nephelaiio.patroni.fdw playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.fdw
@@ -112,7 +112,7 @@
             username: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
             tables:
-              test:
+              molecule_table1:
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
@@ -121,22 +121,22 @@
             username: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
             tables:
-              new:
+              test_table1:
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
-          - source: "{{ patroni_bla_database }}"
-            remote: "{{ patroni_bla_database }}"
+          - source: "{{ patroni_bladb_database }}"
+            remote: "{{ patroni_bladb_database }}"
             state: absent
             username: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
             tables:
-              bla:
+              bladb_table1:
                 columns:
                   - Username character varying(50) NOT NULL
                   - CountryId integer NOT NULL
-                source_schema: blah
-                remote_schema: test1
+                source_schema: bladb_source_schema
+                remote_schema: bladb_remote_schema
 
 - name: Run nephelaiio.patroni.fdw playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.fdw

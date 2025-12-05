@@ -204,6 +204,7 @@
       loop_control:
         label: "{{ item.item.remote }}"
       loop: "{{ _patroni_fdw_table_results.results | default([]) }}"
+      when: _query | length > 0
 
     - name: Set FDW delete tables fact
       ansible.builtin.set_fact:
@@ -344,7 +345,7 @@
         _fetch_size: "{{ item.fetch_size | default('100') }}"
         _app_name: "{{ item.application_name }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _host }} - {{ _app_name }}"
+        label: "Server: {{ _server_name }} - Host: {{ _host }} - App: {{ _app_name }}"
       loop: "{{ _patroni_cluster_fdw_create }}"
       become_user: "{{ _postgresql_user }}"
       when: _extension == 'postgres_fdw'
@@ -373,7 +374,7 @@
         _fetch_size: "{{ item.fetch_size | default('100') }}"
         _app_name: "{{ item.application_name }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _host }} - {{ _app_name }}"
+        label: "Server: {{ _server_name }} - Host: {{ _host }} - App: {{ _app_name }}"
       loop: "{{ _patroni_cluster_fdw_update }}"
       become_user: "{{ _postgresql_user }}"
       changed_when: false
@@ -398,7 +399,7 @@
         _password_enabled: "password '{{ _password }}', password_required '{{ _required }}'"
         _password_disabled: "password_required '{{ _required }}'"
       loop_control:
-        label: "{{ _server_name }} - {{ _username }}"
+        label: "Server: {{ _server_name }} - User: {{ _username }}"
       loop: "{{ _patroni_cluster_fdw_create }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
@@ -426,7 +427,7 @@
         _password_enabled: "{{ _action }} password '{{ _password }}', SET password_required '{{ _required }}'"
         _password_disabled: "SET password_required '{{ _required }}'"
       loop_control:
-        label: "{{ _server_name }} - {{ _username }}"
+        label: "Server: {{ _server_name }} - User: {{ _username }}"
       loop: "{{ _patroni_cluster_fdw_update }}"
       become_user: "{{ _postgresql_user }}"
       changed_when: false
@@ -460,7 +461,7 @@
         _existing_table_objects: "{{ _existing_tables_option | selectattr('option_name', 'equalto', 'table_name') | flatten }}"
         _existing_table_names: "{{ _existing_table_objects | map(attribute='option_value') }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _table_name }} - {{ _table_name }}"
+        label: "Server: {{ _server_name }} - Foreign_table: {{ _foreign_table_name }} - Table_name: {{ _table_name }}"
       loop: "{{ _fdw | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       when: not _table_name in _existing_table_names
@@ -480,7 +481,7 @@
         _db_remote: "{{ item.remote }}"
         _fdw: "{{ _patroni_cluster_fdw_create + _patroni_cluster_fdw_update }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _db_remote }} - {{ _username }}"
+        label: "Server: {{ _server_name }} - Database: {{ _db_source }} - User: {{ _username }}"
       loop: "{{ _fdw }}"
       become_user: "{{ _postgresql_user }}"
       changed_when: false
@@ -502,7 +503,7 @@
         _db_remote: "{{ item.0.remote }}"
         _fdw: "{{ _patroni_cluster_fdw_create + _patroni_cluster_fdw_update }}"
       loop_control:
-        label: "{{ _db_remote }} - {{ _table_name }} - {{ _username }}"
+        label: "Database: {{ _db_source }} - Foreign_table: {{ _table_name }} - User: {{ _username }}"
       loop: "{{ _fdw | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       changed_when: false
@@ -526,10 +527,11 @@
         _username: "{{ _server.username }}"
         _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
         _is_key: "{{ _table.key is defined }}"
-        _table_key: "{{ _table.key }}_{{ _suffix }}"
-        _table_name: "{{ _schema }}.{{ _table_key if _is_key else _table.option_value }}"
+        _table_key: "{{ _table.key }}"
+        _table_filter: "{{ _table_key if _is_key else _table.option_value }}"
+        _table_name: "{{ _schema }}.{{ _table_filter }}_{{ _suffix }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _db_remote }} - {{ _table_name }}"
+        label: "Server: {{ _server_name }} - Database: {{ _db_source }} - Foreign_table: {{ _table_name }}"
       loop: "{{ _delete_tables | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
@@ -547,7 +549,7 @@
         _db_source: "{{ item.source }}"
         _db_remote: "{{ item.remote }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _db_remote }} - {{ _username }}"
+        label: "Server: {{ _server_name }} - Database: {{ _db_source }} - User: {{ _username }}"
       loop: "{{ _patroni_cluster_fdw_delete }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
@@ -570,10 +572,10 @@
         _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
         _is_key: "{{ _table.key is defined }}"
         _table_key: "{{ _table.key }}"
-        _table_filter: "{{  _table_key if _is_key else _table.option_value }}"
+        _table_filter: "{{ _table_key if _is_key else _table.option_value }}"
         _table_name: "{{ _schema }}.{{ _table_filter }}_{{ _suffix }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _db_remote }} - {{ _table_name }}"
+        label: "Server: {{ _server_name }} - Database: {{ _db_source }} - Foreign_table: {{ _table_name }}"
       loop: "{{ _delete_tables | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
@@ -591,7 +593,7 @@
         _db_source: "{{ item.source }}"
         _username: "{{ item.username }}"
       loop_control:
-        label: "{{ _server_name }} - {{ _username }}"
+        label: "Server: {{ _server_name }} - User: {{ _username }}"
       loop: "{{ _patroni_cluster_fdw_delete }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
@@ -607,7 +609,7 @@
         _server_name: "{{ item.server_name }}"
         _db_source: "{{ item.source }}"
       loop_control:
-        label: "{{ _server_name }}"
+        label: "Server: {{ _server_name }}"
       loop: "{{ _patroni_cluster_fdw_delete }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
