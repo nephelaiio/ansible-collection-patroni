@@ -111,7 +111,7 @@ provisioner:
           patroni_molecule_password: molecule
           patroni_molecule_database: molecule
           patroni_test_database: test
-          patroni_bla_database: BlaDB
+          patroni_bladb_database: BlaDB
           patroni_barman_verify: true
           patroni_cluster_roles:
             - name: "{{ patroni_molecule_username }}"
@@ -125,7 +125,7 @@ provisioner:
               roles:
                 - name: "{{ patroni_molecule_username }}"
                   privs: ALL
-            - name: "{{ patroni_bla_database }}"
+            - name: "{{ patroni_bladb_database }}"
               roles:
                 - name: "{{ patroni_molecule_username }}"
                   privs: ALL
@@ -135,34 +135,36 @@ provisioner:
               username: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
               tables:
-                test:
+                molecule_table1:
                   columns:
                     - Username character varying(50) NOT NULL
                     - CountryId integer NOT NULL
-                final:
+                molecule_table2:
                   columns:
                     - Username character varying(50) NOT NULL
                     - CountryId integer NOT NULL
+                  source_schema: molecule_source_schema
+                  remote_schema: molecule_remote_schema
             - source: "{{ patroni_test_database }}"
               remote: "{{ patroni_test_database }}"
               username: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
               tables:
-                new:
+                test_table1:
                   columns:
                     - Username character varying(50) NOT NULL
                     - CountryId integer NOT NULL
-            - source: "{{ patroni_bla_database }}"
-              remote: "{{ patroni_bla_database }}"
+            - source: "{{ patroni_bladb_database }}"
+              remote: "{{ patroni_bladb_database }}"
               username: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
               tables:
-                bla:
+                bladb_table1:
                   columns:
                     - Username character varying(50) NOT NULL
                     - CountryId integer NOT NULL
-                  source_schema: blah
-                  remote_schema: test1
+                  source_schema: bladb_source_schema
+                  remote_schema: bladb_remote_schema
 verifier:
   name: ansible
 scenario:
