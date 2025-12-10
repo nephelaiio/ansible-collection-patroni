@@ -1,9 +1,5 @@
 ---
 name: libvirt
-
-env:
-  DEVBOX_VERSION: ${{ vars.DEVBOX_VERSION }}
-
 on:
   pull_request:
     branches:
@@ -11,11 +7,9 @@ on:
     paths:
       - "*"
       - "!README.md"
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   libvirt:
     name: libvirt
@@ -28,8 +22,7 @@ jobs:
           - databases
           - fdw
         image:
-          - distro: jammy
-            url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+          - https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
     env:
       MOLECULE_OUTPUT_DIR: /tmp/logs
     steps:
@@ -39,8 +32,7 @@ jobs:
           run: |
             make requirements test \
               MOLECULE_SCENARIO=${{ matrix.scenario }} \
-              MOLECULE_KVM_DISTRO=${{ matrix.image.distro }} \
-              MOLECULE_KVM_IMAGE=${{ matrix.image.url }}
+              MOLECULE_KVM_IMAGE=${{ matrix.image }}
 
       - name: Upload install logs
         uses: actions/upload-artifact@v4
