@@ -39,6 +39,6 @@ jobs:
         with:
           name: install-${{ matrix.scenario }}-${{ matrix.image.distro }}.log
           path: |
-            /tmp/logs/*
+            ${MOLECULE_OUTPUT_DIR}/*
           if-no-files-found: ignore
         if: always()
