@@ -65,8 +65,11 @@
         patroni_cluster_fdw:
           - source: "{{ patroni_molecule_database }}"
             remote: "{{ patroni_molecule_database }}"
-            username: "{{ patroni_molecule_username }}"
-            password: "{{ patroni_molecule_password }}"
+            users:
+              molecule:
+                password: "{{ patroni_molecule_password }}"
+              test:
+                password: "{{ patroni_test_password }}"
             tables:
               molecule_table1:
                 columns:
@@ -74,8 +77,11 @@
                   - CountryId integer NOT NULL
           - source: "{{ patroni_test_database }}"
             remote: "{{ patroni_test_database }}"
-            username: "{{ patroni_molecule_username }}"
-            password: "{{ patroni_molecule_password }}"
+            users:
+              molecule:
+                password: "{{ patroni_molecule_password }}"
+              test:
+                password: "{{ patroni_test_password }}"
             tables:
               test_table1:
                 columns:
@@ -83,8 +89,11 @@
                   - CountryId integer NOT NULL
           - source: "{{ patroni_bladb_database }}"
             remote: "{{ patroni_bladb_database }}"
-            username: "{{ patroni_molecule_username }}"
-            password: "{{ patroni_molecule_password }}"
+            users:
+              molecule:
+                password: "{{ patroni_molecule_password }}"
+              test:
+                password: "{{ patroni_test_password }}"
             tables:
               bladb_table1:
                 columns:
@@ -109,8 +118,11 @@
         patroni_cluster_fdw:
           - source: "{{ patroni_molecule_database }}"
             remote: "{{ patroni_molecule_database }}"
-            username: "{{ patroni_molecule_username }}"
-            password: "{{ patroni_molecule_password }}"
+            users:
+              molecule:
+                password: "{{ patroni_molecule_password }}"
+              test:
+                password: "{{ patroni_test_password }}"
             tables:
               molecule_table1:
                 columns:
@@ -118,8 +130,11 @@
                   - CountryId integer NOT NULL
           - source: "{{ patroni_test_database }}"
             remote: "{{ patroni_test_database }}"
-            username: "{{ patroni_molecule_username }}"
-            password: "{{ patroni_molecule_password }}"
+            users:
+              molecule:
+                password: "{{ patroni_molecule_password }}"
+              test:
+                password: "{{ patroni_test_password }}"
             tables:
               test_table1:
                 columns:
@@ -128,8 +143,11 @@
           - source: "{{ patroni_bladb_database }}"
             remote: "{{ patroni_bladb_database }}"
             state: absent
-            username: "{{ patroni_molecule_username }}"
-            password: "{{ patroni_molecule_password }}"
+            users:
+              molecule:
+                password: "{{ patroni_molecule_password }}"
+              test:
+                password: "{{ patroni_test_password }}"
             tables:
               bladb_table1:
                 columns:

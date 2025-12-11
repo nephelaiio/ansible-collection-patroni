@@ -107,8 +107,10 @@ provisioner:
           patroni_cluster_barman_password: molecule
           patroni_watchdog_enable: false
           patroni_watchdog_mode: off
-          patroni_molecule_username: fdw
+          patroni_molecule_username: molecule
           patroni_molecule_password: molecule
+          patroni_test_username: test
+          patroni_test_password: test
           patroni_molecule_database: molecule
           patroni_test_database: test
           patroni_bladb_database: BlaDB
@@ -116,24 +118,35 @@ provisioner:
           patroni_cluster_roles:
             - name: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
+            - name: "{{ patroni_test_username }}"
+              password: "{{ patroni_test_password }}"
           patroni_cluster_databases:
             - name: "{{ patroni_molecule_database }}"
               roles:
                 - name: "{{ patroni_molecule_username }}"
                   privs: ALL
+                - name: "{{ patroni_test_username }}"
+                  privs: ALL
             - name: "{{ patroni_test_database }}"
               roles:
                 - name: "{{ patroni_molecule_username }}"
+                  privs: ALL
+                - name: "{{ patroni_test_username }}"
                   privs: ALL
             - name: "{{ patroni_bladb_database }}"
               roles:
                 - name: "{{ patroni_molecule_username }}"
                   privs: ALL
+                - name: "{{ patroni_test_username }}"
+                  privs: ALL
           patroni_cluster_fdw:
             - source: "{{ patroni_molecule_database }}"
               remote: "{{ patroni_molecule_database }}"
-              username: "{{ patroni_molecule_username }}"
-              password: "{{ patroni_molecule_password }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
               tables:
                 molecule_table1:
                   columns:
@@ -147,8 +160,11 @@ provisioner:
                   remote_schema: molecule_remote_schema
             - source: "{{ patroni_test_database }}"
               remote: "{{ patroni_test_database }}"
-              username: "{{ patroni_molecule_username }}"
-              password: "{{ patroni_molecule_password }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
               tables:
                 test_table1:
                   columns:
@@ -156,8 +172,11 @@ provisioner:
                     - CountryId integer NOT NULL
             - source: "{{ patroni_bladb_database }}"
               remote: "{{ patroni_bladb_database }}"
-              username: "{{ patroni_molecule_username }}"
-              password: "{{ patroni_molecule_password }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
               tables:
                 bladb_table1:
                   columns:
