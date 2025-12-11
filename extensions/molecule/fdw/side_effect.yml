@@ -80,8 +80,6 @@
             users:
               molecule:
                 password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
             tables:
               test_table1:
                 columns:

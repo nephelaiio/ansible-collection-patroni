@@ -82,6 +82,7 @@
         _patroni_fdw_existing_user_mappings: []
         _patroni_fdw_existing_tables: []
         _patroni_fdw_delete_tables: []
+        _patroni_fdw_delete_user_mappings: []
         _patroni_cluster_fdw_targets: []
         _to_dict: "nephelaiio.plugins.to_dict"
         _map_format: "nephelaiio.plugins.map_format"
@@ -236,6 +237,22 @@
       loop: "{{ _patroni_fdw_existing_tables | default([]) }}"
       when: _delete_tables | length > 0
 
+    - name: Set FDW delete user mappings fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_delete_user_mappings: "{{ _patroni_fdw_delete_user_mappings + [_map_user] }}"
+      vars:
+        _map_default:
+          tables: "{{ _target_servers | map(attribute='tables') | flatten }}"
+        _server_name: "{{ item.foreign_server_name }}"
+        _target_servers: "{{ _patroni_cluster_fdw_update | selectattr('server_name', 'equalto', _server_name) }}"
+        _target_users: "{{ _target_servers | map(attribute='users') | flatten | map(attribute='key') | flatten }}"
+        _user: "{{ item.option_value }}"
+        _map_user: "{{ item | combine(_map_default) }}"
+      loop_control:
+        label: "Server Name: {{ _server_name }} - Username: {{ _user }}"
+      loop: "{{ _patroni_fdw_existing_user_mappings | selectattr('option_name', 'equalto', 'user') }}"
+      when: not _user in _target_users
+
     - name: Query existing PostgreSQL schemas
       community.postgresql.postgresql_query:
         login_db: "{{ _db_source }}"
@@ -306,15 +323,19 @@
       vars:
         _fdw: "{{ _patroni_cluster_fdw_update | map(_drop_attrs, ['password']) }}"
 
-    - name: Debug foreign data wrappers to delete
+    - name: Debug stale foreign data wrappers
       ansible.builtin.debug:
         msg: "{{ _fdw }}"
       vars:
         _fdw: "{{ _patroni_cluster_fdw_delete | map(_drop_attrs, ['password']) }}"
 
-    - name: Debug foreign tables to delete
+    - name: Debug stale foreign tables
       ansible.builtin.debug:
         msg: "{{ _patroni_fdw_delete_tables }}"
+
+    - name: Debug stale user mappings
+      ansible.builtin.debug:
+        msg: "{{ _patroni_fdw_delete_user_mappings }}"
 
     - name: Create PostgreSQL extension
       community.postgresql.postgresql_ext:
@@ -529,6 +550,50 @@
       become_user: "{{ _postgresql_user }}"
       changed_when: false
       no_log: "{{ _patroni_nolog }}"
+
+    - name: Revoke PostgreSQL grant select privs from stale users
+      community.postgresql.postgresql_query:
+        login_db: "{{ _db_source }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: >-
+          REVOKE SELECT ON TABLE {{ _table_name }} FROM {{ _username }};
+        autocommit: true
+      vars:
+        _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
+        _user: "{{ item.0 }}"
+        _table: "{{ item.1 }}"
+        _server_name: "{{ _user.foreign_server_name }}"
+        _db_source: "{{ _user.foreign_server_catalog }}"
+        _schema: "{{ _table.value.source_schema }}"
+        _table_name: "{{ _schema }}.{{ _table.key }}_{{ _suffix }}"
+        _username: "{{ _user.option_value }}"
+        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
+      loop_control:
+        label: "Server: {{ _server_name }} - Foreign_table: {{ _table_name }} - User: {{ _username }}"
+      loop: "{{ _patroni_fdw_delete_user_mappings | subelements('tables') }}"
+      become_user: "{{ _postgresql_user }}"
+      no_log: "{{ _patroni_nolog }}"
+      when: _delete_tables | length == 0
+
+    - name: Revoke PostgreSQL grant usage privs from stale users
+      community.postgresql.postgresql_query:
+        login_db: "{{ _db_source }}"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: >-
+          REVOKE USAGE ON FOREIGN SERVER {{ _server_name }} FROM {{ _username }};
+        autocommit: true
+      vars:
+        _user: "{{ item }}"
+        _server_name: "{{ _user.foreign_server_name }}"
+        _db_source: "{{ _user.foreign_server_catalog }}"
+        _username: "{{ _user.option_value }}"
+        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
+      loop_control:
+        label: "Server: {{ _server_name }} - User: {{ _username }}"
+      loop: "{{ _patroni_fdw_delete_user_mappings }}"
+      become_user: "{{ _postgresql_user }}"
+      no_log: "{{ _patroni_nolog }}"
+      when: _delete_tables | length == 0
 
     - name: Revoke PostgreSQL grant select privs
       community.postgresql.postgresql_query:
