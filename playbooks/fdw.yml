@@ -567,13 +567,11 @@
         _schema: "{{ _table.value.source_schema }}"
         _table_name: "{{ _schema }}.{{ _table.key }}_{{ _suffix }}"
         _username: "{{ _user.option_value }}"
-        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
       loop_control:
         label: "Server: {{ _server_name }} - Foreign_table: {{ _table_name }} - User: {{ _username }}"
       loop: "{{ _patroni_fdw_delete_user_mappings | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
-      when: _delete_tables | length == 0
 
     - name: Revoke PostgreSQL grant usage privs from stale users
       community.postgresql.postgresql_query:
@@ -587,13 +585,11 @@
         _server_name: "{{ _user.foreign_server_name }}"
         _db_source: "{{ _user.foreign_server_catalog }}"
         _username: "{{ _user.option_value }}"
-        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
       loop_control:
         label: "Server: {{ _server_name }} - User: {{ _username }}"
       loop: "{{ _patroni_fdw_delete_user_mappings }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
-      when: _delete_tables | length == 0
 
     - name: Revoke PostgreSQL grant select privs
       community.postgresql.postgresql_query:
