@@ -20,10 +20,10 @@
         _map_format: "nephelaiio.plugins.map_format"
         _to_dict: "nephelaiio.plugins.to_dict"
         _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
-        _server_names: "{{ _targets | map(attribute='remote') }}"
-        _server_names_format: "{{ _server_names | map(_map_format, '%s_' + _server_suffix) | map('lower') }}"
-        _server_names_dict: "{{ _server_names_format | map(_to_dict, 'server_name') }}"
-        _targets_overwritten: "{{ _targets | zip(_server_names_dict) | map('combine') }}"
+        _foreign_servers: "{{ _targets | map(attribute='remote') }}"
+        _foreign_servers_format: "{{ _foreign_servers | map(_map_format, '%s_' + _server_suffix) | map('lower') }}"
+        _foreign_servers_dict: "{{ _foreign_servers_format | map(_to_dict, 'foreign_server') }}"
+        _targets_overwritten: "{{ _targets | zip(_foreign_servers_dict) | map('combine') }}"
 
     - name: Query existing FDW servers
       community.postgresql.postgresql_query:
@@ -54,21 +54,21 @@
         msg: "{{ _servers }}"
       vars:
         _fdw: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
-        _servers: "{{ _fdw | map(attribute='server_name') }}"
+        _servers: "{{ _fdw | map(attribute='foreign_server') }}"
 
     - name: Debug FDW servers deleted
       ansible.builtin.debug:
         msg: "{{ _servers }}"
       vars:
         _fdw: "{{ _fdw_targets | selectattr('state', 'equalto', 'absent') }}"
-        _servers: "{{ _fdw | map(attribute='server_name') }}"
+        _servers: "{{ _fdw | map(attribute='foreign_server') }}"
 
     - name: Validate PostgreSQL foreign data wrapper servers
       ansible.builtin.assert:
         that:
-          - _targets | rejectattr('server_name', 'in', _existing) | length == 0
+          - _targets | rejectattr('foreign_server', 'in', _existing) | length == 0
           - (_targets | length) == (_existing | length)
-          - _delete | selectattr('server_name', 'in', _existing) | length == 0
+          - _delete | selectattr('foreign_server', 'in', _existing) | length == 0
       vars:
         _existing: "{{ _fdw_existing_servers | selectattr('srvname', 'defined') | map(attribute='srvname') }}"
         _targets: "{{ _fdw_targets | selectattr('state', 'equalto', 'present') }}"
@@ -92,7 +92,7 @@
         _fdw_existing_user_mappings: "{{ _fdw_existing_user_mappings + _users }}"
       vars:
         _query: "{{ item.query_result | default([]) }}"
-        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', item.item.remote) }}"
+        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', item.item.source) }}"
         _users: "{{ _foreign_catalog | rejectattr('option_name', 'equalto', 'password') }}"
       loop_control:
         label: "{{ item.item.remote }}"

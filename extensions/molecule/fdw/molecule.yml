@@ -139,9 +139,10 @@ provisioner:
                   privs: ALL
                 - name: "{{ patroni_test_username }}"
                   privs: ALL
+          patroni_fdw_remote_prefix: "remote"
           patroni_cluster_fdw:
             - source: "{{ patroni_molecule_database }}"
-              remote: "{{ patroni_molecule_database }}"
+              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_molecule_database }}"
               users:
                 molecule:
                   password: "{{ patroni_molecule_password }}"
@@ -159,7 +160,7 @@ provisioner:
                   source_schema: molecule_source_schema
                   remote_schema: molecule_remote_schema
             - source: "{{ patroni_test_database }}"
-              remote: "{{ patroni_test_database }}"
+              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_test_database }}"
               users:
                 molecule:
                   password: "{{ patroni_molecule_password }}"
@@ -171,7 +172,7 @@ provisioner:
                     - Username character varying(50) NOT NULL
                     - CountryId integer NOT NULL
             - source: "{{ patroni_bladb_database }}"
-              remote: "{{ patroni_bladb_database }}"
+              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
               users:
                 molecule:
                   password: "{{ patroni_molecule_password }}"
