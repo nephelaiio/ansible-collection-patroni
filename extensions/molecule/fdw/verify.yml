@@ -92,7 +92,7 @@
         _fdw_existing_user_mappings: "{{ _fdw_existing_user_mappings + _users }}"
       vars:
         _query: "{{ item.query_result | default([]) }}"
-        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', item.item.remote) }}"
+        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', item.item.source) }}"
         _users: "{{ _foreign_catalog | rejectattr('option_name', 'equalto', 'password') }}"
       loop_control:
         label: "{{ item.item.remote }}"
