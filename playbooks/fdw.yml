@@ -145,11 +145,12 @@
       ansible.builtin.set_fact:
         _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + _users }}"
       vars:
+        _db: "{{ item.item.source }}"
         _query: "{{ item.query_result | default([]) }}"
-        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', item.item.remote) }}"
+        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', _db) }}"
         _users: "{{ _foreign_catalog | rejectattr('option_name', 'equalto', 'password') }}"
       loop_control:
-        label: "{{ item.item.remote }}"
+        label: "{{ _db }}"
       loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
 
     - name: Set PostgreSQL FDW facts
@@ -216,9 +217,10 @@
       ansible.builtin.set_fact:
         _patroni_fdw_delete_tables: "{{ _patroni_fdw_delete_tables + [_map_tables] }}"
       vars:
+        _server_name: "{{ item.server_name }}"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_delete }}"
         _users: "{{ _patroni_fdw_existing_user_mappings }}"
-        _server_catalog: "{{ _users | selectattr('foreign_server_catalog', 'equalto', item.remote) }}"
+        _server_catalog: "{{ _users | selectattr('foreign_server_name', 'equalto', _server_name) }}"
         _target_users: "{{ _server_catalog | map(attribute='authorization_identifier') }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
         _target_server: "{{ _fdw | selectattr('source', 'equalto', item.source) }}"
@@ -229,7 +231,7 @@
         _map_tables:
           source: "{{ item.source }}"
           remote: "{{ item.remote }}"
-          server_name: "{{ item.server_name }}"
+          server_name: "{{ _server_name }}"
           tables: "{{ _delete_tables }}"
           users: "{{ _target_users | map(_to_dict, 'key') }}"
       loop_control:
@@ -431,7 +433,7 @@
         _password_disabled: "password_required '{{ _required }}'"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
         _user_mappings: "{{ _patroni_fdw_existing_user_mappings }}"
-        _users_catalog: "{{ _user_mappings | selectattr('foreign_server_catalog', 'equalto', _db_remote) }}"
+        _users_catalog: "{{ _user_mappings | selectattr('foreign_server_name', 'equalto', _server_name) }}"
         _users: "{{ _users_catalog | selectattr('option_name', 'equalto', 'user') }}"
         _existing_users: "{{ _users | map(attribute='option_value') | flatten }}"
       loop_control:
@@ -454,7 +456,7 @@
         _server_object: "{{ item.0 }}"
         _user_object: "{{ item.1 }}"
         _user_mappings: "{{ _patroni_fdw_existing_user_mappings }}"
-        _users_catalog: "{{ _user_mappings | selectattr('foreign_server_catalog', 'equalto', _db_remote) }}"
+        _users_catalog: "{{ _user_mappings | selectattr('foreign_server_name', 'equalto', _server_name) }}"
         _users: "{{ _users_catalog | selectattr('option_name', 'equalto', 'password_required') }}"
         _existing_password_disabled: "{{ _users | rejectattr('option_value') }}"
         _existing_users: "{{ _existing_password_disabled | map(attribute='authorization_identifier') | flatten }}"
