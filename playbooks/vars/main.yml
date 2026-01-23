@@ -7,6 +7,7 @@ patroni_defaults_dcs:
     parameters:
       archive_mode: "on"
       archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
+patroni_postgres_user: postgres
 
 # Overridable values
 _patroni_nolog: "{{ patroni_nolog | default(True) }}"
@@ -270,6 +271,13 @@ _patroni_cluster_fdw_server_suffix: "{{ patroni_cluster_fdw_server_suffix | defa
 _patroni_cluster_fdw_app_name_suffix: "{{ patroni_cluster_fdw_app_name_suffix | default('fdw') }}"
 _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default([]) }}"
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
+_patroni_bootstrap_method: "{{ patroni_bootstrap_method | default('initdb') }}"
+_patroni_keep_recovery_conf: "{{ patroni_keep_revovery_conf | default('true') }}"
+_patroni_recovery_target_action: "{{ patroni_recovery_target_action | default('pause') }}"
+_patroni_recovery_target_timeline: "{{ patroni_recovery_target_timeline | default('latest') }}"
+_patroni_barman_api_port: "{{ patroni_barman_api_port | default(7480) }}"
+_patroni_barman_recovery_parallel: "{{ patroni_barman_recovery_paraller | default(4) }}"
+_patroni_barman_recovery_sleep: "{{ patroni_barman_recovery_sleep | default(10) }}"
 
 # Hardcoded values
 _patroni_groups_master: "_patroni_cluster_master"

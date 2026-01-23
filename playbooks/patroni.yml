@@ -192,6 +192,16 @@
         _config_postgresql_max_replication_slots: "{{ _patroni_bootstrap_postgresql_max_replication_slots }}"
         _config_postgresql_max_worker_processes: "{{ _patroni_bootstrap_postgresql_max_worker_processes }}"
         _config_postgresql_track_commit_timestamp: "{{ _patroni_bootstrap_postgresql_track_commit_timestamp }}"
+        _barman_backup_id: "{{ _patroni_barman_backup_id | default('') }}"
+        _barman_hostname: "{{ groups[_patroni_barman_hostgroup] | map('extract', hostvars, ['ansible_hostname']) | first }}"
+        _master_hostname: "{{ groups[_patroni_cluster_master] | map('extract', hostvars, ['ansible_hostname']) }}"
+        _config_sshcommand: "ssh {{ patroni_postgres_user }}@{{ _master_hostname }}"
+        _config_recovery_target_action: "{{ _patroni_recovery_target_action }}"
+        _config_recovery_target_timeline: "{{ _patroni_recovery_target_timeline }}"
+        _config_recovery_target_time: "{{ _patroni_recovery_target_time | default('') }}"
+        _barman_api_url: "http://{{ _barman_hostname }}:{{ _patroni_barman_api_port }}"
+        _barman_recovery_parallel: "{{ _patroni_barman_recovery_parallel }}"
+        _barman_recovery_sleep: "{{ _patroni_barman_recovery_sleep }}"
       notify: patroni_reload
 
     - name: Manage Patroni profile

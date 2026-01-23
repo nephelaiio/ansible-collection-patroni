@@ -33,11 +33,21 @@ postgresql:
       username: {{ _config_rewind_username }}
       password: {{ _config_rewind_password }}
 bootstrap:
-  method: initdb
-  initdb:
+  method: {{ _patroni_bootstrap_method }}
+  {{ _patroni_bootstrap_method | lower }}:
+{% if _patroni_bootstrap_method | lower == 'initdb' %}
     - data-checksums
     - encoding: {{ _config_encoding }}
     - locale: {{ _config_locale }}
+{% else %}
+    keep_existing_recovery_conf: {{ _patroni_keep_recovery_conf | bool }}
+    command: patroni_barman --api-url '{{ _barman_api_url }}' recover --barman-server {{ _config_cluster_name }} --backup-id {{ _barman_backup_id }} --ssh=command '{{ _config_sshcommand }}' --data-directory {{ _config_datadir }}
+    recovery_conf:
+      restore_command: barman-wal-restore -U {{ _patroni_barman_user }} -p {{ _barman_recovery_parallel }} -s {{ _barman_recovery_sleep }} {{ _barman_hostname }} {{ _config_cluster_name }} %f %p
+      recovery_target_action: {{ _config_recovery_target_action }}
+      recovery_target_time: "{{ _config_recovery_target_time }}"
+      recovery_target_timeline: {{ _config_recovery_target_timeline }}
+{% endif %}
   dcs:
     loop_wait: 2
     ttl: 20
