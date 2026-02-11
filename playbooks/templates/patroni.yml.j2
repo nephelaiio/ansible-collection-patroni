@@ -39,6 +39,14 @@ bootstrap:
     - encoding: {{ _config_encoding }}
     - locale: {{ _config_locale }}
   dcs:
+{% if inventory_hostname in _standby_cluster_nodes %}
+    standby_cluster:
+      host: {{ groups['_patroni_cluster_member'] | join(', ') }}
+      port: {{ _config_port_psql }}
+      create_replica_methods:
+        - basebackup
+      primary_slot_name: {{ _patroni_cluster_standby_slot }}
+{% endif %}
     loop_wait: 2
     ttl: 20
     retry_timeout: 3
@@ -46,8 +54,13 @@ bootstrap:
     maximum_lag_syncnode: {{ _config_maxlag_sync | int }}
     primary_start_timeout: {{ _config_start_timeout }}
     synchronous_mode: off
+{% if not inventory_hostname in _standby_cluster_nodes %}
     slots:
       {{ _config_slots | indent(width=6) }}
+{% if _standby_cluster_nodes | length > 0 %}
+      {{ _standby_slots | indent(width=6) }}
+{% endif %}
+{% endif %}
     postgresql:
       use_pg_rewind: true
       remove_data_directory_on_rewind_failure: true

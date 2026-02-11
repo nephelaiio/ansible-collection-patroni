@@ -15,13 +15,13 @@ An [ansible collection](https://galaxy.ansible.com/ui/repo/published/nephelaiio/
 
 ## Collection hostgroups
 
-| Hostgroup                 |              Default | Description                                               |
-| :------------------------ | -------------------: | :-------------------------------------------------------- |
-| patroni_cluster_group     |    'patroni_cluster' | Patroni DBMS hosts                                        |
-| patroni_consul_group      |     'patroni_consul' | Patroni Consul Distibuted Configuration Store (DCS) hosts |
-| patroni_barman_group      |     'patroni_barman' | Patroni Barman hosts                                      |
-| patroni_haproxy_group     |    'patroni_haproxy' | Patroni HAProxy hosts                                     |
-| patroni_update_skip_group | 'patroni_update_skip | Patroni update exclude hosts                              |
+| Hostgroup                   |              Default | Description                                               |
+| :-------------------------- | -------------------: | :-------------------------------------------------------- |
+| patroni_cluster_group       |    'patroni_cluster' | Patroni DBMS hosts                                        |
+| patroni_consul_server_group |     'patroni_consul' | Patroni Consul Distibuted Configuration Store (DCS) hosts |
+| patroni_barman_group        |     'patroni_barman' | Patroni Barman hosts                                      |
+| patroni_haproxy_group       |    'patroni_haproxy' | Patroni HAProxy hosts                                     |
+| patroni_update_skip_group   | 'patroni_update_skip | Patroni update exclude hosts                              |
 
 ## Collection variables
 

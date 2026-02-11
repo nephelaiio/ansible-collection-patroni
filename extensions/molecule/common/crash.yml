@@ -9,7 +9,6 @@
   vars:
     pagila_db: "{{ patroni_molecule_database }}"
 
-
 - name: Crash cluster master
   hosts: _patroni_cluster_master
   become: true
@@ -27,7 +26,6 @@
       ansible.builtin.service:
         name: patroni
         state: started
-
 
 - name: Populate pagila database
   import_playbook: ./pagila.yml

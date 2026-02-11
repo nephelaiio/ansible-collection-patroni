@@ -15,6 +15,7 @@ _patroni_cluster_hostgroup: "{{ patroni_cluster_group | default('patroni_cluster
 _patroni_barman_hostgroup: "{{ patroni_barman_group | default('patroni_barman') }}"
 _patroni_update_skip_hostgroup: "{{ patroni_update_skip_group | default('patroni_update_skip') }}"
 _patroni_haproxy_hostgroup: "{{ patroni_haproxy_group | default('patroni_haproxy') }}"
+_patroni_standby_hostgroup: "{{ patroni_standby_group | default('patroni_standby') }}"
 
 _patroni_release_postgresql: "{{ patroni_release_postgresql | default(patroni_defaults_release_postgresql) }}"
 
@@ -79,6 +80,7 @@ _patroni_cluster_barman_pgpass_settings:
     host: "127.0.0.1"
     port: "{{ _patroni_haproxy_port_psql_master_local }}"
     database: replication
+_patroni_cluster_standby_slot: standby
 
 _patroni_cluster_hba_base:
   - type: local
@@ -211,7 +213,7 @@ _patroni_cluster_pg_stat_statements_config: |
   pg_stat_statements.max = {{ _patroni_cluster_pg_stat_statements_max }}
   pg_stat_statements.track = '{{ _patroni_cluster_pg_stat_statements_track }}'
 
-consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
+consul_group_name: "{{ patroni_consul_server_group | default('patroni_consul') }}"
 consul_release: "{{ patroni_release_consul | default(patroni_defaults_release_consul) }}"
 consul_datacenter_name: "{{ patroni_consul_datacenter | default('patroni') }}"
 consul_backup_retention: "{{ patroni_consul_backup_retention | default('1440') }}"
@@ -272,8 +274,6 @@ _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default(
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 
 # Hardcoded values
-_patroni_groups_master: "_patroni_cluster_master"
-
 postgresql_hba_entries: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
 postgresql_release: "{{ _patroni_cluster_release }}"
 postgresql_initdb: false

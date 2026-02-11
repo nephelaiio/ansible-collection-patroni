@@ -2,8 +2,8 @@
 - name: Set cluster facts
   ansible.builtin.import_playbook: nephelaiio.patroni.facts
 
-- name: Deploy Patroni cluster members
-  hosts: "_patroni_cluster_master:_patroni_cluster_slave"
+- name: Deploy Patroni cluster and standby members
+  hosts: _patroni_cluster_master:_patroni_cluster_slave:_patroni_standby_leader:_patroni_standby_slave
   any_errors_fatal: true
   become: true
   vars_files:
@@ -159,6 +159,10 @@
         _cluster_slots: "{{ _cluster_slot_data | community.general.dict }}"
         _barman_slot_data: "[{{ [_slot_barman] | map(_map_format, _slot_template) | join(',') }}]"
         _barman_slots: "{{ _barman_slot_data | community.general.dict }}"
+        _slot_standby: "{{ _patroni_cluster_standby_slot }}"
+        _standby_slot_data: "[{{ [_slot_standby] | map(_map_format, _slot_template) | join(',') }}]"
+        _standby_slots: "{{ _standby_slot_data | community.general.dict | to_nice_yaml(indent=2) }}"
+        _standby_cluster_nodes: "{{ groups['_patroni_standby_member'] | default([]) }}"
         _config_cluster_name: "{{ _patroni_cluster_name }}"
         _config_port_psql: "{{ _patroni_cluster_port_psql }}"
         _config_port_restapi: "{{ _patroni_cluster_port_restapi }}"
@@ -212,19 +216,23 @@
       ansible.builtin.set_fact:
         _api_username: "{{ _config_data.restapi.authentication.username }}"
         _api_password: "{{ _config_data.restapi.authentication.password }}"
+        _cluster_master: "{{ groups['_patroni_cluster_master'] | default([]) }}"
+        _cluster_slaves: "{{ groups['_patroni_cluster_slave'] | default([]) }}"
+        _standby_leader: "{{ groups['_patroni_standby_leader'] | default([]) }}"
+        _standby_slaves: "{{ groups['_patroni_standby_slave'] | default([]) }}"
       vars:
         _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
 
     - name: Start Patroni master node
-      when: inventory_hostname in groups[_patroni_groups_master]
+      when: inventory_hostname in _cluster_master or inventory_hostname in _standby_leader
       block:
-        - name: Start Patroni master service
+        - name: Start Patroni master and standby leader services
           ansible.builtin.service:
             name: "{{ _patroni_cluster_service_name }}"
             state: started
             enabled: true
 
-        - name: Verify primary liveness
+        - name: Verify primary and standby leader liveness
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/liveness"
             user: "{{ _api_username }}"
@@ -249,9 +257,24 @@
           retries: 30
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
           until: _patroni_status_query is succeeded
+          when: inventory_hostname in _cluster_master
+
+        - name: Verify standby leader status
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 3
+          register: _patroni_status_query
+          retries: 30
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+          until: _patroni_status_query is succeeded
+          when: inventory_hostname in _standby_leader
 
     - name: Start Patroni slave node
-      when: inventory_hostname not in groups[_patroni_groups_master]
+      when: inventory_hostname not in _cluster_master and inventory_hostname not in _standby_leader
       block:
         - name: Start Patroni slave services
           ansible.builtin.service:

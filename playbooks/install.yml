@@ -8,14 +8,14 @@
 - name: Deploy Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.install
   vars:
-    consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
+    consul_group_name: "{{ hostvars['localhost']['_patroni_consul_server_group'] }}"
     consul_role: server
     consul_install_from_repo: true
 
 - name: Deploy Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.install
   vars:
-    consul_group_name: "{{ patroni_cluster_group | default('patroni_cluster') }}"
+    consul_group_name: "{{ hostvars['localhost']['_patroni_consul_client_group'] }}"
     consul_role: client
     consul_install_from_repo: true
 

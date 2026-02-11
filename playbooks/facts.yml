@@ -1,6 +1,6 @@
 ---
 - name: Set Patroni cluster facts
-  hosts: "{{ _patroni_cluster_hostgroup }}"
+  hosts: "{{ _patroni_cluster_hostgroup }}:{{ _patroni_standby_hostgroup }}"
   tags: always
   vars_files:
     - main.yml
@@ -18,7 +18,7 @@
         _address: "{{ ansible_default_ipv4.address }}"
 
 - name: Query PostgreSQL cluster status
-  hosts: "{{ _patroni_cluster_hostgroup }}"
+  hosts: "{{ _patroni_cluster_hostgroup }}:{{ _patroni_standby_hostgroup }}"
   become: true
   tags: always
   vars_files:
@@ -43,6 +43,12 @@
         _service_state: "{{ services[_postgresql_service_name].state | default('running') }}"
       when: _service_state != 'running'
 
+    - name: Verify standby status
+      ansible.builtin.assert:
+        that: patroni_cluster_standby | default('false') | bool
+        fail_msg: "Patroni standby cluster is not enabled"
+      when: inventory_hostname in groups[_patroni_standby_hostgroup]
+
     - name: Query cluster status
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
@@ -66,47 +72,134 @@
         _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"
         _is_master: "{{ _is_member and not _is_slave }}"
 
-    - name: Group cluster members
-      ansible.builtin.group_by:
-        key: "_cluster_{{ 'alien' if _cluster_alien else _status }}"
-      vars:
-        _status: "{{ 'master' if _cluster_master else 'slave' }}"
+    - name: Manage cluster group members
+      when: not inventory_hostname in groups[_patroni_standby_hostgroup]
+      block:
+        - name: Group cluster members
+          ansible.builtin.group_by:
+            key: "_cluster_{{ 'alien' if _cluster_alien else _status }}"
+          vars:
+            _status: "{{ 'master' if _cluster_master else 'slave' }}"
 
-    - name: Verify cluster status
-      ansible.builtin.assert:
-        that:
-          - (patroni_bootstrap_allow | default(True) | bool) or _has_master
-          - _unique_master | bool
-          - _slaves_have_master | bool
-        fail_msg: "Patroni cluster is in an inconsistent state"
-      vars:
-        _aliens: "{{ groups['_cluster_alien'] | default([]) }}"
-        _masters: "{{ groups['_cluster_master'] | default([]) }}"
-        _slaves: "{{ groups['_cluster_slave'] | default([]) }}"
-        _unique_master: "{{ _masters | length < 2 }}"
-        _has_master: "{{ _masters | length > 0 }}"
-        _has_slaves: "{{ _slaves | length > 0 }}"
-        _slaves_have_master: "{{ not _has_slaves or _has_master }}"
+        - name: Verify cluster status
+          ansible.builtin.assert:
+            that:
+              - (patroni_bootstrap_allow | default(True) | bool) or _has_master
+              - _unique_master | bool
+              - _slaves_have_master | bool
+            fail_msg: "Patroni cluster is in an inconsistent state"
+          vars:
+            _aliens: "{{ groups['_cluster_alien'] | default([]) }}"
+            _masters: "{{ groups['_cluster_master'] | default([]) }}"
+            _slaves: "{{ groups['_cluster_slave'] | default([]) }}"
+            _unique_master: "{{ _masters | length < 2 }}"
+            _has_master: "{{ _masters | length > 0 }}"
+            _has_slaves: "{{ _slaves | length > 0 }}"
+            _slaves_have_master: "{{ not _has_slaves or _has_master }}"
+
+    - name: Manage standby group members
+      when: inventory_hostname in groups[_patroni_standby_hostgroup]
+      block:
+        - name: Gather patroni standby leader status
+          when: _patroni_cluster_service_name in services
+          block:
+            - name: Slurp Patroni configuration
+              ansible.builtin.slurp:
+                path: "{{ _patroni_cluster_config_file }}"
+              register: _patroni_config_query
+
+            - name: Set Patroni configuration facts
+              ansible.builtin.set_fact:
+                _api_username: "{{ _config_data.restapi.authentication.username }}"
+                _api_password: "{{ _config_data.restapi.authentication.password }}"
+              vars:
+                _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+
+            - name: Verify standby leader status
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 3
+              register: _patroni_status_query
+              ignore_errors: true
+
+        - name: Group standby members
+          ansible.builtin.group_by:
+            key: "_standby_{{ 'alien' if _cluster_alien else _status }}"
+          vars:
+            _leader: "{{ (_patroni_status_query.json.role | default('')) == 'standby_leader' }}"
+            _status: "{{ 'leader' if (_cluster_master or _leader) else 'slave' }}"
+
+        - name: Verify standby status
+          ansible.builtin.assert:
+            that:
+              - (patroni_bootstrap_allow | default(True) | bool) or _has_leader
+              - _unique_leader | bool
+              - _slaves_have_leader | bool
+            fail_msg: "Patroni standby cluster is in an inconsistent state"
+          vars:
+            _aliens: "{{ groups['_standby_alien'] | default([]) }}"
+            _leader: "{{ groups['_standby_leader'] | default([]) }}"
+            _slaves: "{{ groups['_standby_slave'] | default([]) }}"
+            _unique_leader: "{{ _leader | length < 2 }}"
+            _has_leader: "{{ _leader | length > 0 }}"
+            _has_slaves: "{{ _slaves | length > 0 }}"
+            _slaves_have_leader: "{{ not _has_slaves or _has_leader }}"
 
     - name: Set hostgroup facts
       ansible.builtin.set_fact:
-        _hosts_cluster: "{{ ansible_play_hosts_all }}"
-        _hosts_masters: "{{ _masters + _bootstrap }}"
-        _hosts_slaves: "{{ _slaves | difference(_bootstrap) }}"
+        _hosts_cluster_masters: "{{ _cluster_masters + _cluster_bootstrap }}"
+        _hosts_cluster_slaves: "{{ _cluster_slaves | difference(_cluster_bootstrap) }}"
+        _hosts_standby_leader: "{{ _standby_leader + _standby_bootstrap }}"
+        _hosts_standby_slaves: "{{ _standby_slaves | difference(_standby_bootstrap) }}"
       vars:
-        _aliens: "{{ groups['_cluster_alien'] | default([]) }}"
-        _masters: "{{ groups['_cluster_master'] | default([]) }}"
-        _slaves: "{{ groups['_cluster_slave'] | default([]) }}"
-        _bootstrap: "{{ [] if (_masters | length > 0) else ([_aliens | first]) }}"
+        _cluster_aliens: "{{ groups['_cluster_alien'] | default([]) }}"
+        _cluster_masters: "{{ groups['_cluster_master'] | default([]) }}"
+        _cluster_slaves: "{{ groups['_cluster_slave'] | default([]) }}"
+        _cluster_bootstrap: "{{ [] if (_cluster_masters | length > 0) else ([_cluster_aliens | first]) }}"
+        _standby_aliens: "{{ groups['_standby_alien'] | default([]) }}"
+        _standby_leader: "{{ groups['_standby_leader'] | default([]) }}"
+        _standby_slaves: "{{ groups['_standby_slave'] | default([]) }}"
+        _standby_bootstrap: "{{ [] if (_standby_leader | length > 0) else ([_standby_aliens | first]) }}"
 
-    - name: Debug host cluster role
+    - name: Manage cluster group members
+      when: not inventory_hostname in groups[_patroni_standby_hostgroup]
+      block:
+        - name: Debug host cluster role
+          ansible.builtin.debug:
+            msg: "Adding host to {{ 'master' if _master else 'slave' }} role"
+          vars:
+            _master: "{{ inventory_hostname in _hosts_cluster_masters }}"
+
+        - name: Create cluster groups by role
+          ansible.builtin.group_by:
+            key: "_patroni_cluster_{{ 'master' if _master else 'slave' }}"
+          vars:
+            _master: "{{ inventory_hostname in _hosts_cluster_masters }}"
+
+        - name: Create cluster group
+          ansible.builtin.group_by:
+            key: "_patroni_cluster_member"
+
+    - name: End play for patroni cluster members
+      ansible.builtin.meta: end_host
+      when: inventory_hostname in groups['_patroni_cluster_member']
+
+    - name: Debug host standby role
       ansible.builtin.debug:
-        msg: "Adding host to {{ 'master' if _master else 'slave' }} role"
+        msg: "Adding host to {{ 'standby-leader' if _master else 'slave' }} role"
       vars:
-        _master: "{{ inventory_hostname in _hosts_masters }}"
+        _master: "{{ inventory_hostname in _hosts_standby_leader }}"
 
-    - name: Create cluster role groups
+    - name: Create standby groups by role
       ansible.builtin.group_by:
-        key: "_patroni_cluster_{{ 'master' if _master else 'slave' }}"
+        key: "_patroni_standby_{{ 'leader' if _master else 'slave' }}"
       vars:
-        _master: "{{ inventory_hostname in _hosts_masters }}"
+        _master: "{{ inventory_hostname in _hosts_standby_leader }}"
+
+    - name: Create standby group
+      ansible.builtin.group_by:
+        key: "_patroni_standby_member"

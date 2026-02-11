@@ -1,0 +1,172 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+    requirements-file: requirements.yml
+driver:
+  name: default
+platforms:
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_cluster
+      - patroni_consul_client
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_cluster
+      - patroni_consul_client
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-03
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_cluster
+      - patroni_consul_client
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-03
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 2
+    size: 30G
+    groups:
+      - patroni_haproxy
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_barman
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_standby
+      - patroni_consul_client
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_standby
+      - patroni_consul_client
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-03
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_standby
+      - patroni_consul_client
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      allow_world_readable_tmpfiles: true
+      callbacks_enabled: ansible.posix.profile_tasks
+  playbooks:
+    create: ../common/create.yml
+    destroy: ../common/destroy.yml
+    cleanup: ../common/cleanup.yml
+    prepare: ../common/prepare.yml
+    converge: ../common/install.yml
+    verify: ../common/verify.yml
+  inventory:
+    group_vars:
+      all:
+        libvirt_platforms: "{{ molecule_yml.platforms }}"
+        patroni_nolog: false
+        postgresql_nolog: "{{ patroni_nolog | bool }}"
+        patroni_release_postgresql: 16
+        patroni_config_hostnames: false
+        patroni_consul_backuppath: /backup
+        patroni_cluster_api_password: molecule
+        patroni_cluster_postgres_password: molecule
+        patroni_cluster_replication_password: molecule
+        patroni_cluster_rewind_password: molecule
+        patroni_cluster_barman_password: molecule
+        patroni_watchdog_enable: false
+        patroni_watchdog_mode: off
+        patroni_molecule_username: install
+        patroni_molecule_password: molecule
+        patroni_molecule_database: test
+        patroni_barman_verify: true
+        patroni_config_dcs:
+          postgresql:
+            parameters:
+              max_connections: 50
+              max_locks_per_transaction: 32
+              max_worker_processes: 16
+              max_prepared_transactions: 0
+              wal_level: logical
+              max_wal_senders: 20
+              max_replication_slots: 20
+              archive_mode: "on"
+              archive_command: barman-wal-archive patroni-${MOLECULE_SCENARIO_NAME}-barman-01 molecule %p
+        patroni_cluster_pgpass_settings:
+          - user: "{{ patroni_molecule_username }}"
+            password: "{{ patroni_molecule_password }}"
+        patroni_consul_client_group: patroni_consul_client
+        patroni_cluster_name: primary
+      patroni_cluster:
+        patroni_cluster_roles:
+          - name: "{{ patroni_molecule_username }}"
+            password: "{{ patroni_molecule_password }}"
+        patroni_cluster_databases:
+          - name: "{{ patroni_molecule_database }}"
+            roles:
+              - name: "{{ patroni_molecule_username }}"
+                privs: ALL
+      patroni_standby:
+        patroni_cluster_name: secondary
+        patroni_cluster_standby: true
+verifier:
+  name: ansible
+scenario:
+  prepare_sequence:
+    - prepare
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+  cleanup_sequence:
+    - cleanup
+  test_sequence:
+    - dependency
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify

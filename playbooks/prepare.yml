@@ -2,6 +2,7 @@
 - name: Prepare Patroni stack members
   hosts:
     - "{{ _patroni_cluster_hostgroup }}"
+    - "{{ _patroni_standby_hostgroup }}"
     - "{{ _patroni_barman_hostgroup }}"
     - "{{ _patroni_haproxy_hostgroup }}"
     - "{{ consul_group_name }}"
@@ -42,3 +43,10 @@
           - rsync
           - cron
       when: ansible_os_family == 'Debian'
+
+    - name: Set patroni consul client members group
+      ansible.builtin.set_fact:
+        _patroni_consul_client_group: "{{ patroni_consul_client_group | default('patroni_cluster') }}"
+        _patroni_consul_server_group: "{{ patroni_consul_server_group | default('patroni_consul') }}"
+      delegate_facts: true
+      delegate_to: localhost
