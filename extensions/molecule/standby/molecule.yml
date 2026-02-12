@@ -173,7 +173,6 @@ provisioner:
             password: "{{ patroni_molecule_password }}"
         patroni_consul_client_group: patroni_consul_client
         patroni_cluster_name: primary
-      patroni_cluster:
         patroni_cluster_roles:
           - name: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"

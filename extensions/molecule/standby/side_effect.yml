@@ -2,7 +2,7 @@
 - name: Set cluster facts
   ansible.builtin.import_playbook: nephelaiio.patroni.facts
 
-- name: Create tables and schemas
+- name: List patroni primary databases
   hosts: _patroni_cluster_master
   become: true
   vars_files:
@@ -13,149 +13,193 @@
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
 
-    - name: Set PostgreSQL FDW fact
-      ansible.builtin.set_fact:
-        _patroni_fdw_databases: "{{ _tables_overwritten }}"
-      vars:
-        _fdw: "{{ _patroni_cluster_fdw | sort(attribute='remote') }}"
-        _tables: "{{ _fdw | map(attribute='tables') | map('dict2items') }}"
-        _tables_dict: "{{ _tables | map('nephelaiio.plugins.to_dict', 'tables') }}"
-        _tables_overwritten: "{{ _fdw | zip(_tables_dict) | map('combine') }}"
-
-    - name: Create schemas
-      community.postgresql.postgresql_schema:
-        login_db: "{{ _db }}"
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        name: "{{ _name }}"
-      vars:
-        _name: "{{ item.1.value.source_schema | default('public') }}"
-        _db: "{{ item.0.source }}"
-      loop_control:
-        label: "Schema: {{ _name }} - Database: {{ _db }}"
-      loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
+        query: "SELECT datname FROM pg_database;"
       become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Set patroni primary database fact
+      ansible.builtin.set_fact:
+        _patroni_primary_databases: "{{ _databases }}"
+      vars:
+        _results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _databases: "{{ _results | map(attribute='datname') }}"
+      delegate_to: localhost
+      delegate_facts: true
+
+- name: List patroni standby databases
+  hosts: _patroni_standby_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Set patroni secondary database fact
+      ansible.builtin.set_fact:
+        _patroni_secondary_databases: "{{ _secondaries }}"
+        _patroni_primary_databases: "{{ _primaries }}"
+      vars:
+        _results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _secondaries: "{{ _results | map(attribute='datname') }}"
+        _primaries: "{{ hostvars['localhost']['_patroni_primary_databases'] }}"
+
+    - name: Debug primary databases
+      ansible.builtin.debug:
+        var: _patroni_primary_databases
+
+    - name: Debug secondary databases
+      ansible.builtin.debug:
+        var: _patroni_secondary_databases
+
+    - name: Verify database in standby members
+      ansible.builtin.assert:
+        that: _secondaries | reject('in', _primaries) | length == 0
+      vars:
+        _primaries: "{{ _patroni_primary_databases }}"
+        _secondaries: "{{ _patroni_secondary_databases }}"
+
+- name: Create patroni standby database
+  hosts: all
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set patroni secondary database fact
+      ansible.builtin.set_fact:
+        patroni_cluster_databases:
+          - name: "{{ patroni_molecule_database }}"
+            roles:
+              - name: "{{ patroni_molecule_username }}"
+                privs: ALL
+          - name: "standby"
+            roles:
+              - name: "{{ patroni_molecule_username }}"
+                privs: ALL
+        patroni_tables:
+          - name: standby_table1
+            columns:
+              - Username character varying(50) NOT NULL
+              - CountryId integer NOT NULL
+          - name: standby_table2
+            columns:
+              - Username character varying(50) NOT NULL
+              - CountryId integer NOT NULL
+
+- name: Run nephelaiio.patroni.databases playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.databases
+
+- name: List patroni primary databases
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
 
     - name: Create tables
       community.postgresql.postgresql_table:
-        login_db: "{{ _db }}"
+        login_db: "standby"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         name: "{{ _name }}"
-        columns: "{{ item.1.value.columns }}"
+        columns: "{{ item.columns }}"
       vars:
-        _name: "{{ item.1.key }}"
-        _db: "{{ item.0.source }}"
+        _name: "{{ item.name }}"
       loop_control:
-        label: "Table: {{ _name }} - Database: {{ _db }}"
-      loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
+        label: "Table: {{ _name }}"
+      loop: "{{ patroni_tables }}"
       become_user: "{{ _postgresql_user }}"
 
-- name: Run nephelaiio.patroni.fdw playbook
-  ansible.builtin.import_playbook: nephelaiio.patroni.fdw
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
 
-- name: Import verify playbook
-  ansible.builtin.import_playbook: ./verify.yml
+    - name: Set patroni primary database facts
+      ansible.builtin.set_fact:
+        _patroni_primary_databases: "{{ _databases }}"
+      vars:
+        _database_results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _databases: "{{ _database_results | map(attribute='datname') }}"
+      delegate_to: localhost
+      delegate_facts: true
 
-- name: Override Foreign Data Wrapper data
-  hosts: all
+- name: List patroni standby databases
+  hosts: _patroni_standby_member
+  become: true
   vars_files:
     - ../../../playbooks/vars/main.yml
   tasks:
-    - name: Override fdw fact
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query existing standby tables
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        login_db: "standby"
+        query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_table_results
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Set patroni secondary database fact
       ansible.builtin.set_fact:
-        patroni_cluster_fdw:
-          - source: "{{ patroni_molecule_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_molecule_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              molecule_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_test_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_test_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-            tables:
-              test_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_bladb_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              bladb_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-                source_schema: bladb_source_schema
-                remote_schema: bladb_remote_schema
+        _patroni_secondary_databases: "{{ _secondaries }}"
+        _patroni_primary_databases: "{{ _primaries }}"
+        _patroni_secondary_tables: "{{ _tables }}"
+      vars:
+        _database_results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _secondaries: "{{ _database_results | map(attribute='datname') }}"
+        _primaries: "{{ hostvars['localhost']['_patroni_primary_databases'] }}"
+        _table_results: "{{ _patroni_table_results.query_result | default([]) }}"
+        _tables: "{{ _table_results | map(attribute='table_name') }}"
 
-- name: Run nephelaiio.patroni.fdw playbook
-  ansible.builtin.import_playbook: nephelaiio.patroni.fdw
+    - name: Debug primary databases
+      ansible.builtin.debug:
+        var: _patroni_primary_databases
 
-- name: Import verify playbook
-  ansible.builtin.import_playbook: ./verify.yml
+    - name: Debug secondary databases
+      ansible.builtin.debug:
+        var: _patroni_secondary_databases
 
-- name: Override Foreign Data Wrapper data
-  hosts: all
-  vars_files:
-    - ../../../playbooks/vars/main.yml
-  tasks:
-    - name: Override fdw fact
-      ansible.builtin.set_fact:
-        patroni_cluster_fdw:
-          - source: "{{ patroni_molecule_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_molecule_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              molecule_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_test_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_test_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              test_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_bladb_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
-            state: absent
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              bladb_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-                source_schema: bladb_source_schema
-                remote_schema: bladb_remote_schema
+    - name: Debug primary tables
+      ansible.builtin.debug:
+        msg: "{{ patroni_tables | map(attribute='name') }}"
 
-- name: Run nephelaiio.patroni.fdw playbook
-  ansible.builtin.import_playbook: nephelaiio.patroni.fdw
+    - name: Debug secondary tables
+      ansible.builtin.debug:
+        var: _patroni_secondary_tables
 
-- name: Import verify playbook
-  ansible.builtin.import_playbook: ./verify.yml
+    - name: Verify database and table in standby members
+      ansible.builtin.assert:
+        that:
+          - _secondaries | reject('in', _primaries) | length == 0
+          - _patroni_secondary_tables | reject('in', _tables) | length == 0
+      vars:
+        _primaries: "{{ _patroni_primary_databases }}"
+        _secondaries: "{{ _patroni_secondary_databases }}"
+        _tables: "{{ patroni_tables | map(attribute='name') }}"
