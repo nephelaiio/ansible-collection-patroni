@@ -14,6 +14,7 @@ platforms:
     size: 30G
     groups:
       - patroni_cluster
+      - patroni_primary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-02
     image: "${MOLECULE_KVM_IMAGE}"
@@ -22,6 +23,7 @@ platforms:
     size: 30G
     groups:
       - patroni_cluster
+      - patroni_primary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-03
     image: "${MOLECULE_KVM_IMAGE}"
@@ -30,6 +32,7 @@ platforms:
     size: 30G
     groups:
       - patroni_cluster
+      - patroni_primary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-01
     image: "${MOLECULE_KVM_IMAGE}"
@@ -38,6 +41,7 @@ platforms:
     size: 30G
     groups:
       - patroni_consul
+      - patroni_primary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-02
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
@@ -45,6 +49,7 @@ platforms:
     size: 30G
     groups:
       - patroni_consul
+      - patroni_primary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-03
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
@@ -52,6 +57,31 @@ platforms:
     size: 30G
     groups:
       - patroni_consul
+      - patroni_primary
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-04
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+      - patroni_secondary
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-05
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+      - patroni_secondary
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-consul-06
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 1
+    size: 30G
+    groups:
+      - patroni_consul
+      - patroni_secondary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
@@ -73,6 +103,7 @@ platforms:
     size: 30G
     groups:
       - patroni_standby
+      - patroni_secondary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-02
     image: "${MOLECULE_KVM_IMAGE}"
@@ -81,6 +112,7 @@ platforms:
     size: 30G
     groups:
       - patroni_standby
+      - patroni_secondary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-03
     image: "${MOLECULE_KVM_IMAGE}"
@@ -89,6 +121,7 @@ platforms:
     size: 30G
     groups:
       - patroni_standby
+      - patroni_secondary
       - patroni_consul_client
 provisioner:
   name: ansible
@@ -152,6 +185,12 @@ provisioner:
       patroni_standby:
         patroni_cluster_name: secondary
         patroni_cluster_standby: true
+      patroni_primary:
+        consul_datacenter_name: "consul_cluster"
+        consul_hostgroup_prefix: "{{ consul_datacenter_name }}"
+      patroni_secondary:
+        consul_datacenter_name: "consul_standby"
+        consul_hostgroup_prefix: "{{ consul_datacenter_name }}"
 verifier:
   name: ansible
 scenario:
