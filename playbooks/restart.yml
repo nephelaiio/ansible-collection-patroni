@@ -1,6 +1,6 @@
 ---
 - name: Restart cluster slaves
-  hosts: "_patroni_cluster_slaves"
+  hosts: "_patroni_cluster_slave"
   any_errors_fatal: true
   serial: 1
   vars_files:
