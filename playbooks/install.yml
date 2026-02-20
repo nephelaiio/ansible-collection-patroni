@@ -37,10 +37,10 @@
   vars:
     _patroni_extension: pg_stat_statements
 
-- name: Deploy pg_partman_bgw extension
+- name: Deploy pg_partman extension
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:
-    _patroni_extension: pg_partman_bgw
+    _patroni_extension: pg_partman
 
 - name: Deploy Barman nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.barman
