@@ -24,6 +24,7 @@ _patroni_config_locale: "{{ postgresql_locale }}"
 _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
+_patroni_config_pg_partman_bgw: 40-pg_partman_bgw.conf
 _patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) }}"
 _patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
 _patroni_bootstrap_postgresql_wal_level: "{{ patroni_bootstrap_postgresql_wal_level | default('logical') }}"
