@@ -251,7 +251,6 @@
               - pgaudit
               - pg_cron
               - pg_stat_statements
-              - pg_partman
             _missing: "{{ _expected | difference(_registered) }}"
 
         - name: Verify registered extensions

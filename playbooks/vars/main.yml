@@ -173,8 +173,6 @@ _patroni_cluster_extensions:
     enabled: "{{ _patroni_cluster_pg_cron_enable }}"
   - name: pg_stat_statements
     enabled: "{{ _patroni_cluster_pg_stat_statements_enable }}"
-  - name: pg_partman
-    enabled: "{{ _patroni_cluster_pg_partman_enable }}"
 
 _patroni_cluster_pgaudit_enable: "{{ patroni_cluster_pgadmin_enable | default(True) }}"
 _patroni_cluster_pgaudit_log: "{{ patroni_cluster_pgadmin_log | defaut('ALL') }}"
@@ -212,8 +210,6 @@ _patroni_cluster_pg_stat_statements_config: |
   compute_query_id = '{{ _patroni_cluster_pg_stat_statements_compute_query_id }}'
   pg_stat_statements.max = {{ _patroni_cluster_pg_stat_statements_max }}
   pg_stat_statements.track = '{{ _patroni_cluster_pg_stat_statements_track }}'
-
-_patroni_cluster_pg_partman_enable: "{{ patroni_cluster_pg_partman_enable | default(True) }}"
 
 consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
 consul_release: "{{ patroni_release_consul | default(patroni_defaults_release_consul) }}"
