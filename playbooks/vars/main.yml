@@ -173,6 +173,8 @@ _patroni_cluster_extensions:
     enabled: "{{ _patroni_cluster_pg_cron_enable }}"
   - name: pg_stat_statements
     enabled: "{{ _patroni_cluster_pg_stat_statements_enable }}"
+  - name: pg_partman_bgw
+    enabled: "{{ _patroni_cluster_pg_partman_bgw_enable }}"
 
 _patroni_cluster_pgaudit_enable: "{{ patroni_cluster_pgadmin_enable | default(True) }}"
 _patroni_cluster_pgaudit_log: "{{ patroni_cluster_pgadmin_log | defaut('ALL') }}"
@@ -210,6 +212,19 @@ _patroni_cluster_pg_stat_statements_config: |
   compute_query_id = '{{ _patroni_cluster_pg_stat_statements_compute_query_id }}'
   pg_stat_statements.max = {{ _patroni_cluster_pg_stat_statements_max }}
   pg_stat_statements.track = '{{ _patroni_cluster_pg_stat_statements_track }}'
+
+_patroni_cluster_pg_partman_bgw_enable: "{{ patroni_cluster_pg_partman_bgw_enable | default(True) }}"
+_patroni_cluster_pg_partman_bgw_dbname: "{{ patroni_cluster_pg_partman_bgw_dbname | default('postgres') }}"
+_patroni_cluster_pg_partman_bgw_interval: "{{ patroni_cluster_pg_partman_bgw_interval | default('3600') }}"
+_patroni_cluster_pg_partman_bgw_role: "{{ patroni_cluster_pg_partman_bgw_role | default('postgres') }}"
+_patroni_cluster_pg_partman_bgw_analyze: "{{ patroni_cluster_pg_partman_bgw_analyze | default('off') }}"
+_patroni_cluster_pg_partman_bgw_jobmon: "{{ patroni_cluster_pg_partman_bgw_jobmon | default('on') }}"
+_patroni_cluster_pg_partman_bgw_config: |
+  pg_partman_bgw.dbname = '{{ _patroni_cluster_pg_partman_bgw_dbname }}'
+  pg_partman_bgw.interval = '{{ _patroni_cluster_pg_partman_bgw_interval }}'
+  pg_partman_bgw.role = '{{ _patroni_cluster_pg_partman_bgw_role }}'
+  pg_partman_bgw.analyze = '{{ _patroni_cluster_pg_partman_bgw_analyze }}'
+  pg_partman_bgw.jobmon = '{{ _patroni_cluster_pg_partman_bgw_jobmon }}'
 
 consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
 consul_release: "{{ patroni_release_consul | default(patroni_defaults_release_consul) }}"
