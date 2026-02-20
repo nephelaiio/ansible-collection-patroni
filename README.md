@@ -99,6 +99,11 @@ Cluster wide parameters
 | patroni_archive_server                              | groups[patroni_barman_group].0 | Barman archive server                                        | false    |
 | patroni_cluster_pg_stat_statements_enable           |                           true | Enable pg_stat_statements extension                          | false    |
 | patroni_cluster_pg_stat_statements_max              |                           true | Enable pg_stat_statements extension                          | false    |
+| patroni_cluster_pg_partman_dbname                   |                       postgres | Enable pg_partman extension                                  | false    |
+| patroni_cluster_pg_partman_interval                 |                           3600 | Enable pg_partman extension                                  | false    |
+| patroni_cluster_pg_partman_role                     |                       postgres | Enable pg_partman extension                                  | false    |
+| patroni_cluster_pg_partman_analyze                  |                            off | Enable pg_partman extension                                  | false    |
+| patroni_cluster_pg_partman_jobmon                   |                             on | Enable pg_partman extension                                  | false    |
 
 where <node_object> follows the following json schema
 

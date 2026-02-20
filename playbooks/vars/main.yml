@@ -24,6 +24,7 @@ _patroni_config_locale: "{{ postgresql_locale }}"
 _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
+_patroni_config_pg_partman: 40-pg_partman.conf
 _patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) }}"
 _patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
 _patroni_bootstrap_postgresql_wal_level: "{{ patroni_bootstrap_postgresql_wal_level | default('logical') }}"
@@ -173,6 +174,8 @@ _patroni_cluster_extensions:
     enabled: "{{ _patroni_cluster_pg_cron_enable }}"
   - name: pg_stat_statements
     enabled: "{{ _patroni_cluster_pg_stat_statements_enable }}"
+  - name: pg_partman_bgw
+    enabled: "{{ _patroni_cluster_pg_partman_enable }}"
 
 _patroni_cluster_pgaudit_enable: "{{ patroni_cluster_pgadmin_enable | default(True) }}"
 _patroni_cluster_pgaudit_log: "{{ patroni_cluster_pgadmin_log | defaut('ALL') }}"
@@ -210,6 +213,19 @@ _patroni_cluster_pg_stat_statements_config: |
   compute_query_id = '{{ _patroni_cluster_pg_stat_statements_compute_query_id }}'
   pg_stat_statements.max = {{ _patroni_cluster_pg_stat_statements_max }}
   pg_stat_statements.track = '{{ _patroni_cluster_pg_stat_statements_track }}'
+
+_patroni_cluster_pg_partman_enable: "{{ patroni_cluster_pg_partman_enable | default(True) }}"
+_patroni_cluster_pg_partman_dbname: "{{ patroni_cluster_pg_partman_dbname | default('postgres') }}"
+_patroni_cluster_pg_partman_interval: "{{ patroni_cluster_pg_partman_interval | default('3600') }}"
+_patroni_cluster_pg_partman_role: "{{ patroni_cluster_pg_partman_role | default('postgres') }}"
+_patroni_cluster_pg_partman_analyze: "{{ patroni_cluster_pg_partman_analyze | default('off') }}"
+_patroni_cluster_pg_partman_jobmon: "{{ patroni_cluster_pg_partman_jobmon | default('on') }}"
+_patroni_cluster_pg_partman_config: |
+  pg_partman_bgw.dbname = '{{ _patroni_cluster_pg_partman_dbname }}'
+  pg_partman_bgw.interval = '{{ _patroni_cluster_pg_partman_interval }}'
+  pg_partman_bgw.role = '{{ _patroni_cluster_pg_partman_role }}'
+  pg_partman_bgw.analyze = '{{ _patroni_cluster_pg_partman_analyze }}'
+  pg_partman_bgw.jobmon = '{{ _patroni_cluster_pg_partman_jobmon }}'
 
 consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
 consul_release: "{{ patroni_release_consul | default(patroni_defaults_release_consul) }}"
