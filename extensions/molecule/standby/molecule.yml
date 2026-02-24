@@ -89,6 +89,15 @@ platforms:
     size: 30G
     groups:
       - patroni_haproxy
+      - patroni_primary
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    memory: 2
+    size: 30G
+    groups:
+      - patroni_haproxy
+      - patroni_secondary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
@@ -96,13 +105,22 @@ platforms:
     size: 30G
     groups:
       - patroni_barman
+      - patroni_primary
+  - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 1
+    memory: 4
+    size: 30G
+    groups:
+      - patroni_barman
+      - patroni_secondary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     memory: 4
     size: 30G
     groups:
-      - patroni_standby
+      - patroni_cluster
       - patroni_secondary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-02
@@ -111,7 +129,7 @@ platforms:
     memory: 4
     size: 30G
     groups:
-      - patroni_standby
+      - patroni_cluster
       - patroni_secondary
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-03
@@ -120,7 +138,7 @@ platforms:
     memory: 4
     size: 30G
     groups:
-      - patroni_standby
+      - patroni_cluster
       - patroni_secondary
       - patroni_consul_client
 provisioner:
@@ -156,23 +174,10 @@ provisioner:
         patroni_molecule_password: molecule
         patroni_molecule_database: test
         patroni_barman_verify: true
-        patroni_config_dcs:
-          postgresql:
-            parameters:
-              max_connections: 50
-              max_locks_per_transaction: 32
-              max_worker_processes: 16
-              max_prepared_transactions: 0
-              wal_level: logical
-              max_wal_senders: 20
-              max_replication_slots: 20
-              archive_mode: "on"
-              archive_command: barman-wal-archive patroni-${MOLECULE_SCENARIO_NAME}-barman-01 molecule %p
         patroni_cluster_pgpass_settings:
           - user: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
         patroni_consul_client_group: patroni_consul_client
-        patroni_cluster_name: primary
         patroni_cluster_roles:
           - name: "{{ patroni_molecule_username }}"
             password: "{{ patroni_molecule_password }}"
@@ -181,15 +186,27 @@ provisioner:
             roles:
               - name: "{{ patroni_molecule_username }}"
                 privs: ALL
-      patroni_standby:
+        patroni_cluster_primary_members:
+          - patroni-${MOLECULE_SCENARIO_NAME}-primary-01
+          - patroni-${MOLECULE_SCENARIO_NAME}-primary-02
+          - patroni-${MOLECULE_SCENARIO_NAME}-primary-03
+      patroni_primary:
+        patroni_cluster_name: primary
+        consul_datacenter_name: "consul_{{ patroni_cluster_name }}"
+        consul_hostgroup_prefix: "{{ consul_datacenter_name }}"
+        patroni_cluster_members: "{{ patroni_cluster_primary_members }}"
+        patroni_barman_archive_server: "{{ groups['patroni_barman'].0 }}"
+      patroni_secondary:
+        patroni_cluster_members:
+          - patroni-${MOLECULE_SCENARIO_NAME}-secondary-01
+          - patroni-${MOLECULE_SCENARIO_NAME}-secondary-02
+          - patroni-${MOLECULE_SCENARIO_NAME}-secondary-03
         patroni_cluster_name: secondary
         patroni_cluster_standby: true
-      patroni_primary:
-        consul_datacenter_name: "consul_cluster"
+        consul_datacenter_name: "consul_{{ patroni_cluster_name }}"
         consul_hostgroup_prefix: "{{ consul_datacenter_name }}"
-      patroni_secondary:
-        consul_datacenter_name: "consul_standby"
-        consul_hostgroup_prefix: "{{ consul_datacenter_name }}"
+        patroni_barman_archive_server: "{{ groups['patroni_barman'].1 }}"
+        patroni_haproxy_uri: standby-leader
 verifier:
   name: ansible
 scenario:

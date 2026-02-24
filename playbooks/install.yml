@@ -2,8 +2,17 @@
 - name: Prepare stack nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.prepare
 
-- name: Deploy proxy nodes
+- name: Deploy proxy nodes for primary cluster
   ansible.builtin.import_playbook: nephelaiio.patroni.haproxy
+  vars:
+    _patroni_haproxy_hosts: "{{ groups['_patroni_haproxy_primary'] | default([]) }}"
+  when: _patroni_haproxy_hosts | length > 0
+
+- name: Deploy proxy nodes for standby cluster
+  ansible.builtin.import_playbook: nephelaiio.patroni.haproxy
+  vars:
+    _patroni_haproxy_hosts: "{{ groups['_patroni_haproxy_standby'] | default([]) }}"
+  when: _patroni_haproxy_hosts | length > 0
 
 - name: Deploy Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.install
@@ -41,6 +50,9 @@
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:
     _patroni_extension: pg_partman
+
+- name: Run patroni configure DCS
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
 
 - name: Deploy Barman nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.barman

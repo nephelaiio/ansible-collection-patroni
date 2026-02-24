@@ -42,3 +42,20 @@
           - rsync
           - cron
       when: ansible_os_family == 'Debian'
+
+    - name: Group haproxy cluster primary members
+      ansible.builtin.group_by:
+        key: _patroni_haproxy_primary
+      when: not _patroni_cluster_standby | bool
+
+    - name: Group haproxy cluster standby members
+      ansible.builtin.group_by:
+        key: _patroni_haproxy_standby
+      when: _patroni_cluster_standby | bool
+
+    - name: Set patroni consul client members group
+      ansible.builtin.set_fact:
+        _patroni_consul_client_group: "{{ patroni_consul_client_group | default('patroni_cluster') }}"
+        _patroni_consul_server_group: "{{ patroni_consul_server_group | default('patroni_consul') }}"
+      delegate_facts: true
+      delegate_to: localhost

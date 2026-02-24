@@ -96,6 +96,11 @@
             columns:
               - Username character varying(50) NOT NULL
               - CountryId integer NOT NULL
+        patroni_cluster_roles:
+          - name: "{{ patroni_molecule_username }}"
+            password: "{{ patroni_molecule_password }}"
+          - name: standby
+            password: standby
 
 - name: Run nephelaiio.patroni.databases playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.databases
@@ -166,6 +171,19 @@
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Verify standby status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+
     - name: Set patroni secondary database fact
       ansible.builtin.set_fact:
         _patroni_secondary_databases: "{{ _secondaries }}"
@@ -203,3 +221,96 @@
         _primaries: "{{ _patroni_primary_databases }}"
         _secondaries: "{{ _patroni_secondary_databases }}"
         _tables: "{{ patroni_tables | map(attribute='name') }}"
+
+- name: Run nephelaiio.patroni.configure playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
+  vars:
+    patroni_config_dcs:
+      standby_cluster: null
+      slots:
+        standby:
+          type: physical
+  when: inventory_hostname in groups['_patroni_standby_leader']
+
+- name: Run nephelaiio.patroni.configure playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
+  vars:
+    patroni_config_dcs:
+      standby_cluster:
+        host: "{{ groups['_patroni_standby_member'] | join(', ') }}"
+        port: "{{ _patroni_cluster_port_psql }}"
+        create_replica_methods:
+          - basebackup
+        primary_slot_name: "standby"
+  when: inventory_hostname in groups['_patroni_cluster_master']
+
+- name: Validate promoted patroni standby members
+  hosts: _patroni_cluster_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Verify standby status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+
+- name: Validate promoted patroni cluster members
+  hosts: _patroni_standby_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Set cluster membership facts
+      ansible.builtin.set_fact:
+        _cluster_master: "{{ _is_master | bool }}"
+        _cluster_slave: "{{ _is_slave | bool }}"
+      vars:
+        _service: "{{ _postgresql_service_name }}.service"
+        _is_installed: "{{ _service in services }}"
+        _is_alien: "{{ (not _is_installed) or (_slave_query is failed) }}"
+        _is_member: "{{ not _is_alien }}"
+        _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"
+        _is_master: "{{ _is_member and not _is_slave }}"
+
+    - name: Verify cluster slave status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+      when: _cluster_slave | bool
+
+    - name: Verify cluster master status members
+      ansible.builtin.assert:
+        that: not _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+      when: _cluster_master | bool

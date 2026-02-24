@@ -3,7 +3,7 @@
   ansible.builtin.import_playbook: nephelaiio.patroni.facts
 
 - name: Manage Patroni dynamic cluster configuration
-  hosts: "_patroni_cluster_master"
+  hosts: "_patroni_cluster_master:_patroni_standby_leader"
   any_errors_fatal: true
   vars_files:
     - main.yml

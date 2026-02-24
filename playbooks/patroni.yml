@@ -3,7 +3,7 @@
   ansible.builtin.import_playbook: nephelaiio.patroni.facts
 
 - name: Deploy Patroni cluster members
-  hosts: "_patroni_cluster_master:_patroni_cluster_slave"
+  hosts: "_patroni_cluster_member:_patroni_standby_member"
   any_errors_fatal: true
   become: true
   vars_files:
@@ -11,20 +11,29 @@
   roles:
     - nephelaiio.patroni.pgdg
   tasks:
-    - name: Check required parameters
-      ansible.builtin.assert:
-        that:
-          - _patroni_cluster_name is defined
-          - _patroni_cluster_api_password is defined
-          - _patroni_cluster_replication_password is defined
-          - _patroni_cluster_postgres_password is defined
+    - name: Manage patroni default tasks
       tags: always
+      block:
+        - name: Check required parameters
+          ansible.builtin.assert:
+            that:
+              - _patroni_cluster_name is defined
+              - _patroni_cluster_api_password is defined
+              - _patroni_cluster_replication_password is defined
+              - _patroni_cluster_postgres_password is defined
 
-    - name: Set PostgreSQL facts
-      ansible.builtin.include_role:
-        name: nephelaiio.patroni.postgresql
-        tasks_from: vars.yml
-      tags: always
+        - name: Set patroni member facts
+          ansible.builtin.set_fact:
+            _cluster_master: "{{ groups['_patroni_cluster_master'] | default([]) }}"
+            _standby_leader: "{{ groups['_patroni_standby_leader'] | default([]) }}"
+
+        - name: Set PostgreSQL facts
+          ansible.builtin.include_role:
+            name: nephelaiio.patroni.postgresql
+            tasks_from: vars.yml
+
+        - name: Gather service facts
+          ansible.builtin.service_facts:
 
     - name: Stat PostgreSQL config file
       ansible.builtin.stat:
@@ -142,7 +151,6 @@
         src: "patroni.yml.j2"
         dest: "{{ _patroni_cluster_config_file }}"
         validate: "{{ _svc_running | ternary(omit, 'patroni --validate-config %s') }}"
-        force: false
         owner: "{{ _postgresql_user }}"
         group: "{{ _postgresql_group }}"
         mode: "u=rw,g=r,o="
@@ -150,17 +158,8 @@
       vars:
         _map_format: nephelaiio.plugins.map_format
         _svc_running: "{{ (services[_patroni_cluster_service_name].state | default('running')) == 'running' }}"
-        _slot_template: "[ '%s', { 'type': 'physical' } ]"
-        _slot_barman: "{{ _patroni_cluster_barman_slot }}"
         _cluster_extensions: "{{ _patroni_cluster_extensions | selectattr('enabled') }}"
         _cluster_size: "{{ _cluster_hosts | length }}"
-        _cluster_group: "{{ _patroni_cluster_hostgroup }}"
-        _cluster_hostnames: "{{ groups[_cluster_group] | map('extract', hostvars, ['ansible_hostname']) }}"
-        _cluster_hosts: "{{ _cluster_hostnames | map('regex_replace', '-', '_') }}"
-        _cluster_slot_data: "[{{ _cluster_hosts | map(_map_format, _slot_template) | join(',') }}]"
-        _cluster_slots: "{{ _cluster_slot_data | community.general.dict }}"
-        _barman_slot_data: "[{{ [_slot_barman] | map(_map_format, _slot_template) | join(',') }}]"
-        _barman_slots: "{{ _barman_slot_data | community.general.dict }}"
         _config_cluster_name: "{{ _patroni_cluster_name }}"
         _config_port_psql: "{{ _patroni_cluster_port_psql }}"
         _config_port_restapi: "{{ _patroni_cluster_port_restapi }}"
@@ -170,7 +169,6 @@
         _config_configdir: "{{ _postgresql_confdir }}"
         _config_bindir: "{{ _postgresql_bindir }}"
         _config_address: "{{ ansible_default_ipv4.address }}"
-        _config_slots: "{{ _cluster_slots | combine(_barman_slots) | to_nice_yaml(indent=2) }}"
         _config_api_username: "{{ _patroni_cluster_api_username }}"
         _config_api_password: "{{ _patroni_cluster_api_password }}"
         _config_postgres_password: "{{ _patroni_cluster_postgres_password }}"
@@ -194,6 +192,7 @@
         _config_postgresql_max_replication_slots: "{{ _patroni_bootstrap_postgresql_max_replication_slots }}"
         _config_postgresql_max_worker_processes: "{{ _patroni_bootstrap_postgresql_max_worker_processes }}"
         _config_postgresql_track_commit_timestamp: "{{ _patroni_bootstrap_postgresql_track_commit_timestamp }}"
+        _config_slots: "{{ patroni_config_slots | to_nice_yaml(indent=2) }}"
       notify: patroni_reload
 
     - name: Manage Patroni profile
@@ -218,15 +217,15 @@
         _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
 
     - name: Start Patroni master node
-      when: inventory_hostname in groups[_patroni_groups_master]
+      when: inventory_hostname in _cluster_master or inventory_hostname in _standby_leader
       block:
-        - name: Start Patroni master service
+        - name: Start Patroni master and standby leader services
           ansible.builtin.service:
             name: "{{ _patroni_cluster_service_name }}"
             state: started
             enabled: true
 
-        - name: Verify primary liveness
+        - name: Verify primary and standby leader liveness
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/liveness"
             user: "{{ _api_username }}"
@@ -251,9 +250,24 @@
           retries: 30
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
           until: _patroni_status_query is succeeded
+          when: inventory_hostname in _cluster_master
+
+        - name: Verify standby leader status
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 3
+          register: _patroni_status_query
+          retries: 30
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+          until: _patroni_status_query is succeeded
+          when: inventory_hostname in _standby_leader
 
     - name: Start Patroni slave node
-      when: inventory_hostname not in groups[_patroni_groups_master]
+      when: inventory_hostname not in _cluster_master and inventory_hostname not in _standby_leader
       block:
         - name: Start Patroni slave services
           ansible.builtin.service:

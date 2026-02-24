@@ -39,6 +39,13 @@ bootstrap:
     - encoding: {{ _config_encoding }}
     - locale: {{ _config_locale }}
   dcs:
+{% if _patroni_cluster_standby | bool %}
+    standby_cluster:
+      host: {{ _patroni_cluster_primary_members | join(', ') }}
+      port: {{ _patroni_cluster_port_psql }}
+      create_replica_methods: {{ _patroni_standby_replica_methods }}
+      primary_slot_name: {{ patroni_cluster_standby_slot }}
+{% endif %}
     loop_wait: 2
     ttl: 20
     retry_timeout: 3

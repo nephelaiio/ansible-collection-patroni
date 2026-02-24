@@ -14,10 +14,27 @@
   vars_files:
     - main.yml
   tasks:
+    - name: End play when haproxy not in groups
+      ansible.builtin.meta: end_host
+      when: not inventory_hostname in _patroni_haproxy_hosts
+
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
+
+    - name: Set haproxy facts
+      ansible.builtin.set_fact:
+        _patroni_haproxy_nodes: "{{ _haproxy_nodes }}"
+      vars:
+        _all_nodes: "{{ groups[_patroni_cluster_hostgroup] }}"
+        _cluster_nodes: "{{ _patroni_haproxy_hosts | select('in', _all_nodes) }}"
+        _haproxy_addrattrs: "{{ _patroni_config_hostnames | ternary('ansible_fqdn', _patroni_addrkeys) }}"
+        _haproxy_hostaddrs: "{{ _cluster_nodes | map('extract', hostvars, _haproxy_addrattrs) }}"
+        _haproxy_hostattrs: "{{ _cluster_nodes | zip(_haproxy_hostaddrs) }}"
+        _haproxy_nodes:
+          "{{ _haproxy_hostattrs | map('zip', _patroni_hostkeys) | map('map', 'reverse') |
+          map('community.general.dict') }}"
 
     - name: Install PostgreSQL client packages
       ansible.builtin.package:

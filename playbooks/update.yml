@@ -31,7 +31,7 @@
     - nephelaiio.patroni.update
 
 - name: Update Patroni PostgreSQL slaves
-  hosts: "_patroni_cluster_slave:!{{ _patroni_update_skip_hostgroup }}"
+  hosts: "_patroni_cluster_slave:_patroni_standby_member:!{{ _patroni_update_skip_hostgroup }}"
   become: true
   serial: 1
   any_errors_fatal: true
@@ -83,6 +83,20 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+      when: not inventory_hostname in _patroni_standby_leader
+
+    - name: Verify standby leader pre-update status
+      ansible.builtin.uri:
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
+        user: "{{ _api_username }}"
+        password: "{{ _api_password }}"
+        method: GET
+        status_code: 200
+      retries: 30
+      register: patroni_status
+      until: patroni_status is succeeded
+      delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+      when: inventory_hostname in _patroni_standby_leader
 
     - name: Stop Patroni service
       ansible.builtin.service:
@@ -108,6 +122,23 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+      when: not inventory_hostname in _patroni_standby_leader
+
+    - name: Verify standby leader post-update status
+      ansible.builtin.uri:
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader?lag={{ _maxlag }}"
+        user: "{{ _api_username }}"
+        password: "{{ _api_password }}"
+        method: GET
+        status_code: 200
+      vars:
+        _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+        _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
+      retries: 30
+      register: patroni_status
+      until: patroni_status is succeeded
+      delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+      when: inventory_hostname in _patroni_standby_leader
 
 - name: Update Patroni PostgreSQL master
   hosts: "_patroni_cluster_master:!{{ _patroni_update_skip_hostgroup }}"
