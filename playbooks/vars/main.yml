@@ -34,9 +34,17 @@ patroni_create_replica_method_defaults:
 # Overridable values
 _patroni_nolog: "{{ patroni_nolog | default(True) }}"
 _patroni_cluster_standby: "{{ patroni_cluster_standby | default('false') }}"
-_patroni_cluster_promote_force: "{{ patroni_cluster_promote_force | default('false') }}"
+_patroni_standby_promote_force: "{{ patroni_standby_promote_force | default('false') }}"
 _patroni_standby_replica_methods: "{{ patroni_standby_replica_methods | default(patroni_create_replica_method_defaults) }}"
 _patroni_cluster_members: "{{ patroni_cluster_members | default(groups[_patroni_cluster_hostgroup]) }}"
+_patroni_standby_prefix_group: "{{ patroni_standby_prefix_group | default('standby') }}"
+_patroni_standby_leader_group: "_patroni_{{ _patroni_standby_prefix_group }}_leader"
+_patroni_standby_slave_group: "_patroni_{{ _patroni_standby_prefix_group }}_slave"
+_patroni_standby_member_group: "_patroni_{{ _patroni_standby_prefix_group }}_member"
+_patroni_cluster_prefix_group: "{{ patroni_cluster_prefix_group | default('cluster') }}"
+_patroni_cluster_master_group: "_patroni_{{ _patroni_cluster_prefix_group }}_master"
+_patroni_cluster_slave_group: "_patroni_{{ _patroni_cluster_prefix_group }}_slave"
+_patroni_cluster_member_group: "_patroni_{{ _patroni_cluster_prefix_group }}_member"
 
 _patroni_cluster_hostgroup: "{{ patroni_cluster_group | default('patroni_cluster') }}"
 _patroni_barman_hostgroup: "{{ patroni_barman_group | default('patroni_barman') }}"
@@ -309,7 +317,6 @@ _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default(
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 
 # Hardcoded values
-_patroni_groups_master: "_patroni_cluster_master"
 
 postgresql_hba_entries: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
 postgresql_release: "{{ _patroni_cluster_release }}"

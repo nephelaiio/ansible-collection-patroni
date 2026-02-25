@@ -31,7 +31,7 @@
     - nephelaiio.patroni.update
 
 - name: Update Patroni PostgreSQL slaves
-  hosts: "_patroni_cluster_slave:_patroni_standby_member:!{{ _patroni_update_skip_hostgroup }}"
+  hosts: "{{ _patroni_cluster_slave_group }}:{{ _patroni_standby_member_group }}:!{{ _patroni_update_skip_hostgroup }}"
   become: true
   serial: 1
   any_errors_fatal: true
@@ -83,7 +83,7 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-      when: not inventory_hostname in _patroni_standby_leader
+      when: not inventory_hostname in groups[_patroni_standby_leader_group]
 
     - name: Verify standby leader pre-update status
       ansible.builtin.uri:
@@ -96,7 +96,7 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-      when: inventory_hostname in _patroni_standby_leader
+      when: inventory_hostname in groups[_patroni_standby_leader_group]
 
     - name: Stop Patroni service
       ansible.builtin.service:
@@ -122,7 +122,7 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-      when: not inventory_hostname in _patroni_standby_leader
+      when: not inventory_hostname in groups[_patroni_standby_leader_group]
 
     - name: Verify standby leader post-update status
       ansible.builtin.uri:
@@ -138,10 +138,10 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-      when: inventory_hostname in _patroni_standby_leader
+      when: inventory_hostname in groups[_patroni_standby_leader_group]
 
 - name: Update Patroni PostgreSQL master
-  hosts: "_patroni_cluster_master:!{{ _patroni_update_skip_hostgroup }}"
+  hosts: "{{ _patroni_cluster_master_group }}:!{{ _patroni_update_skip_hostgroup }}"
   become: true
   any_errors_fatal: true
   vars_files:

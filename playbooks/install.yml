@@ -51,9 +51,6 @@
   vars:
     _patroni_extension: pg_partman
 
-- name: Run patroni configure DCS
-  ansible.builtin.import_playbook: nephelaiio.patroni.configure
-
 - name: Deploy Barman nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.barman
 

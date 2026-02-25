@@ -5,7 +5,7 @@
     patroni_bootstrap_allow: false
 
 - name: Manage Barman users
-  hosts: _patroni_cluster_master
+  hosts: "{{ _patroni_cluster_master_group }}"
   become: true
   vars_files:
     - main.yml
@@ -47,7 +47,7 @@
           - file
 
 - name: Manage Barman SSH access from cluster nodes
-  hosts: "_patroni_cluster_member:_patroni_standby_member"
+  hosts: "{{ _patroni_cluster_member_group }}:{{ _patroni_standby_member_group }}"
   become: true
   serial: 1
   vars:

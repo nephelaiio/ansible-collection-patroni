@@ -1,6 +1,6 @@
 ---
 - name: Restart cluster slaves
-  hosts: "_patroni_cluster_slave:_patroni_standby_member"
+  hosts: "{{ _patroni_cluster_slave_group }}:{{ _patroni_standby_member_group }}"
   any_errors_fatal: true
   serial: 1
   vars_files:
@@ -10,7 +10,7 @@
       ansible.builtin.include_tasks: tasks/restart.yml
 
 - name: Restart cluster master
-  hosts: "_patroni_cluster_master"
+  hosts: "{{ _patroni_cluster_master_group }}"
   any_errors_fatal: true
   vars_files:
     - main.yml
