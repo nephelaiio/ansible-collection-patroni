@@ -441,9 +441,3 @@
       vars:
         _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
       when: _cluster_master | bool
-
-- name: Run nephelaiio.patroni.update playbook
-  ansible.builtin.import_playbook: nephelaiio.patroni.update
-  vars:
-    patroni_cluster_prefix_group: "cluster_update"
-    patroni_standby_prefix_group: "standby_update"
