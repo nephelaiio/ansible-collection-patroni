@@ -72,6 +72,15 @@
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
+    - name: Verify standby leader status
+      ansible.builtin.uri:
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
+        method: GET
+        status_code: 200
+        timeout: 3
+      register: _patroni_status_query
+      ignore_errors: true
+
     - name: Verify replica pre-update status
       ansible.builtin.uri:
         url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica"
@@ -83,23 +92,11 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-      when: not inventory_hostname in groups[_patroni_standby_leader_group]
+      when: (_patroni_status_query.json.role | default('')) != 'standby_leader'
 
     - name: Manage standby leader tasks
-      when: inventory_hostname in groups[_patroni_standby_leader_group]
+      when: (_patroni_status_query.json.role | default('')) == 'standby_leader'
       block:
-        - name: Verify standby leader pre-update status
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: GET
-            status_code: 200
-          retries: 30
-          register: patroni_status
-          until: patroni_status is succeeded
-          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-
         - name: Check cluster state
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
