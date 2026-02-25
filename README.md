@@ -145,10 +145,7 @@ Please make sure your environment has [docker](https://www.docker.com) installed
 
 Role is tested against the following distributions (docker images):
 
-- Ubuntu Jammy
-- Ubuntu Focal
-- Debian 12
-- Rocky Linux 9
+- Ubuntu Noble
 
 You can test the collection directly from sources using command `make test`
 
