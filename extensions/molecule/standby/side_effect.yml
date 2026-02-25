@@ -248,6 +248,13 @@
         patroni_standby_promote_force: true
       when: inventory_hostname in groups['_patroni_cluster_member']
 
+    - name: Override patroni primary members fact
+      ansible.builtin.set_fact:
+        patroni_cluster_primary_members:
+          - patroni-standby-secondary-01
+          - patroni-standby-secondary-02
+          - patroni-standby-secondary-03
+
 - name: Run nephelaiio.patroni.configure playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.configure
   vars:
@@ -350,6 +357,13 @@
         patroni_cluster_standby: true
         patroni_standby_promote_force: true
       when: inventory_hostname in groups['_patroni_cluster_failover_member']
+
+    - name: Override patroni primary members fact
+      ansible.builtin.set_fact:
+        patroni_cluster_primary_members:
+          - patroni-standby-primary-01
+          - patroni-standby-primary-02
+          - patroni-standby-primary-03
 
 - name: Run nephelaiio.patroni.configure playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.configure
