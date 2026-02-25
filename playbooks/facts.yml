@@ -144,7 +144,11 @@
       block:
         - name: Verify patroni cluster primary members
           ansible.builtin.assert:
-            that: _patroni_cluster_primary_members | default([]) | length > 0
+            that:
+              - _primary | length > 0
+              - not inventory_hostname in _primary
+          vars:
+            _primary: "{{ _patroni_cluster_primary_members | default([]) }}"
 
         - name: Verify patroni cluster names
           ansible.builtin.assert:
