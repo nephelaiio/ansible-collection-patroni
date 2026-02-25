@@ -167,11 +167,22 @@
           vars:
             _members: "{{ _cluster_status_query.json.members }}"
             _masters: "{{ _members | selectattr('role', 'equalto', 'leader') }}"
+          when: not _patroni_cluster_standby | bool
+
+        - name: Verify cluster standby-leader
+          ansible.builtin.assert:
+            that: _leader | length == 1
+            success_msg: "Found cluster standby-leader {{ (_leader | first).name }}"
+            fail_msg: "Cluster does not have a master"
+          vars:
+            _members: "{{ _cluster_status_query.json.members }}"
+            _leader: "{{ _members | selectattr('role', 'equalto', 'standby_leader') }}"
+          when: _patroni_cluster_standby | bool
 
         - name: Verify cluster member status
           ansible.builtin.assert:
             that:
-              - _status.role in ['leader', 'replica', 'sync_standby']
+              - _status.role in ['leader', 'replica', 'sync_standby', 'standby_leader']
               - _status.state in ['running', 'streaming']
           vars:
             _members: "{{ _cluster_status_query.json.members }}"
@@ -401,6 +412,7 @@
           ansible.builtin.assert:
             that: not _master_query.query_result[0].pg_is_in_recovery
             fail_msg: "Master query result was {{ _master_query.query_result }}"
+          when: not _patroni_cluster_standby | bool
 
         - name: Test slave connectivity
           community.postgresql.postgresql_info:
@@ -439,7 +451,7 @@
       ansible.builtin.command: "ssh postgres@{{ item.0 }} {{ _ssh_options }} hostname"
       vars:
         _ssh_options: "-o StrictHostKeyChecking=no -i ~{{ _patroni_barman_user }}/.ssh/id_rsa"
-        _patroni_hosts: "{{ groups['patroni_cluster'] }}"
+        _patroni_hosts: "{{ _patroni_cluster_members }}"
       loop_control:
         label: "{{ item.1 }}"
       loop: "{{ _patroni_hosts | map('extract', hostvars, _patroni_addrkeys) | zip(_patroni_hosts) }}"
@@ -449,7 +461,7 @@
       vars:
         _ssh_options: "-o StrictHostKeyChecking=no -i ~{{ _patroni_barman_user }}/.ssh/id_rsa"
         _ssh_port: "{{ _patroni_haproxy_port_ssh_master_local }}"
-        _patroni_hosts: "{{ groups['patroni_cluster'] }}"
+        _patroni_hosts: "{{ _patroni_cluster_members }}"
 
     - name: Verify Barman cron execution
       ansible.builtin.command: "barman cron"
