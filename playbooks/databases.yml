@@ -5,7 +5,7 @@
     patroni_bootstrap_allow: false
 
 - name: Manage Patroni databases and roles
-  hosts: _patroni_cluster_master
+  hosts: "{{ _patroni_cluster_master_group }}"
   become: true
   vars_files:
     - main.yml

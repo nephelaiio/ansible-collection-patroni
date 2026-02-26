@@ -3,7 +3,7 @@
   ansible.builtin.import_playbook: nephelaiio.patroni.facts
 
 - name: Deploy Foreign Data Wrappers
-  hosts: _patroni_cluster_master
+  hosts: "{{ _patroni_cluster_master_group }}"
   any_errors_fatal: true
   become: true
   vars_files:

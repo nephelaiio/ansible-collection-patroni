@@ -20,7 +20,7 @@ An [ansible collection](https://galaxy.ansible.com/ui/repo/published/nephelaiio/
 | patroni_cluster_group     |    'patroni_cluster' | Patroni DBMS hosts                                        |
 | patroni_consul_group      |     'patroni_consul' | Patroni Consul Distibuted Configuration Store (DCS) hosts |
 | patroni_barman_group      |     'patroni_barman' | Patroni Barman hosts                                      |
-| patroni_haproxy_group     |    'patroni_haproxy' | Patroni HAProxy hosts                                     |
+| patroni_haproxy_hostgroup |    'patroni_haproxy' | Patroni HAProxy hosts                                     |
 | patroni_update_skip_group | 'patroni_update_skip | Patroni update exclude hosts                              |
 
 ## Collection variables
@@ -84,6 +84,7 @@ Cluster wide parameters
 | patroni_haproxy_maxconn                             |                           1000 | HAProxy max connections settings                             | false    |
 | patroni_haproxy_port_psql_master_local              |                           5432 | HAProxy local port for PostgreSQL master                     | false    |
 | patroni_haproxy_port_psql_slave_local               |                           5433 | HAProxy local port for PostgreSQL slave                      | false    |
+| patroni_haproxy_uri                                 |                         master | HAProxy uri value for configurations                         | false    |
 | patroni_barman_user                                 |                         barman | Barman user                                                  | false    |
 | patroni_barman_group                                |                         barman | Barman group                                                 | false    |
 | patroni_barman_conf_log_level                       |                           INFO | Barman log level                                             | false    |
@@ -96,7 +97,7 @@ Cluster wide parameters
 | patroni_barman_backup_dir                           |                /var/lib/barman | Barman backup directory                                      | false    |
 | patroni_barman_verify                               |                           True | Verify Barman backups                                        | false    |
 | patroni_barman_retention_policy                     |      RECOVERY WINDOW OF 3 DAYS | Barman backups Retention Policy                              | false    |
-| patroni_archive_server                              | groups[patroni_barman_group].0 | Barman archive server                                        | false    |
+| patroni_barman_archive_server                       | groups[patroni_barman_group].0 | Barman archive server                                        | false    |
 | patroni_cluster_pg_stat_statements_enable           |                           true | Enable pg_stat_statements extension                          | false    |
 | patroni_cluster_pg_stat_statements_max              |                           true | Enable pg_stat_statements extension                          | false    |
 | patroni_cluster_pg_partman_dbname                   |                       postgres | Enable pg_partman extension                                  | false    |
@@ -104,6 +105,12 @@ Cluster wide parameters
 | patroni_cluster_pg_partman_role                     |                       postgres | Enable pg_partman extension                                  | false    |
 | patroni_cluster_pg_partman_analyze                  |                            off | Enable pg_partman extension                                  | false    |
 | patroni_cluster_pg_partman_jobmon                   |                             on | Enable pg_partman extension                                  | false    |
+| patroni_cluster_standby                             |                          false | Flag to set whether a cluster is in standby mode             | false    |
+| patroni_standby_promote_force                       |                          false | Flag required to enforce switch a cluster to standby mode    | false    |
+| patroni_cluster_primary_members                     |                             [] | A list of patroni primary members (for standby cluster only) | false    |
+| patroni_standby_replica_methods                     |                 ['basebackup'] | Standby create replica methods                               | false    |
+| patroni_standby_prefix_group                        |                        standby | Default prefix for standby hostgroups                        | false    |
+| patroni_cluster_prefix_group                        |                        cluster | Default prefix for cluster hostgroups                        | false    |
 
 where <node_object> follows the following json schema
 
@@ -138,10 +145,7 @@ Please make sure your environment has [docker](https://www.docker.com) installed
 
 Role is tested against the following distributions (docker images):
 
-- Ubuntu Jammy
-- Ubuntu Focal
-- Debian 12
-- Rocky Linux 9
+- Ubuntu Noble
 
 You can test the collection directly from sources using command `make test`
 

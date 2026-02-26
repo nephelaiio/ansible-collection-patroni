@@ -7,14 +7,48 @@ patroni_defaults_dcs:
     parameters:
       archive_mode: "on"
       archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
+patroni_slot_template: "[ '%s', { 'type': 'physical' } ]"
+patroni_cluster_slot_data: "[{{ patroni_cluster_hosts |
+  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
+patroni_cluster_slots: "{{ patroni_cluster_slot_data | community.general.dict }}"
+patroni_cluster_hostnames: "{{ _patroni_cluster_members | map('extract', hostvars, ['ansible_hostname']) }}"
+patroni_cluster_hosts: "{{ patroni_cluster_hostnames | map('regex_replace', '-', '_') }}"
+patroni_barman_slot_data: "[{{ [_patroni_cluster_barman_slot] |
+  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
+patroni_barman_slots: "{{ patroni_barman_slot_data | community.general.dict }}"
+patroni_cluster_config_slots: "{{ patroni_cluster_slots | combine(patroni_barman_slots, patroni_standby_slots) }}"
+patroni_cluster_standby_slot: standby
+patroni_standby_slot_data: "[{{ [patroni_cluster_standby_slot] |
+  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
+patroni_standby_slots: "{{ patroni_standby_slot_data | community.general.dict }}"
+patroni_standby_config_slots: "{{ patroni_cluster_slots |
+  combine(patroni_barman_slots) }}"
+patroni_config_slots: "{{ (patroni_standby_config_slots if (_patroni_cluster_standby | bool) else patroni_cluster_config_slots) }}"
+patroni_defaults_dcs_slots:
+  slots: "{{ patroni_config_slots }}"
+patroni_dcs_attrs_exclude:
+  - "slots"
+patroni_create_replica_method_defaults:
+  - basebackup
 
 # Overridable values
 _patroni_nolog: "{{ patroni_nolog | default(True) }}"
+_patroni_cluster_standby: "{{ patroni_cluster_standby | default('false') }}"
+_patroni_standby_promote_force: "{{ patroni_standby_promote_force | default('false') }}"
+_patroni_standby_replica_methods: "{{ patroni_standby_replica_methods | default(patroni_create_replica_method_defaults) }}"
+_patroni_cluster_members: "{{ patroni_cluster_members | default(groups[_patroni_cluster_hostgroup]) }}"
+_patroni_standby_prefix_group: "{{ patroni_standby_prefix_group | default('standby') }}"
+_patroni_standby_leader_group: "_patroni_{{ _patroni_standby_prefix_group }}_leader"
+_patroni_standby_slave_group: "_patroni_{{ _patroni_standby_prefix_group }}_slave"
+_patroni_standby_member_group: "_patroni_{{ _patroni_standby_prefix_group }}_member"
+_patroni_cluster_prefix_group: "{{ patroni_cluster_prefix_group | default('cluster') }}"
+_patroni_cluster_master_group: "_patroni_{{ _patroni_cluster_prefix_group }}_master"
+_patroni_cluster_slave_group: "_patroni_{{ _patroni_cluster_prefix_group }}_slave"
+_patroni_cluster_member_group: "_patroni_{{ _patroni_cluster_prefix_group }}_member"
 
 _patroni_cluster_hostgroup: "{{ patroni_cluster_group | default('patroni_cluster') }}"
 _patroni_barman_hostgroup: "{{ patroni_barman_group | default('patroni_barman') }}"
 _patroni_update_skip_hostgroup: "{{ patroni_update_skip_group | default('patroni_update_skip') }}"
-_patroni_haproxy_hostgroup: "{{ patroni_haproxy_group | default('patroni_haproxy') }}"
 
 _patroni_release_postgresql: "{{ patroni_release_postgresql | default(patroni_defaults_release_postgresql) }}"
 
@@ -25,7 +59,8 @@ _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
 _patroni_config_pg_partman: 40-pg_partman.conf
-_patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) }}"
+_patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) |
+  nephelaiio.plugins.drop_attributes(patroni_dcs_attrs_exclude) | combine(patroni_defaults_dcs_slots) }}"
 _patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
 _patroni_bootstrap_postgresql_wal_level: "{{ patroni_bootstrap_postgresql_wal_level | default('logical') }}"
 _patroni_bootstrap_postgresql_wal_keep_segments: "{{ patroni_bootstrap_postgresql_wal_keep_segments | default(8) }}"
@@ -41,7 +76,6 @@ _patroni_watchdog_mode: "{{ _patroni_watchdog_enable | bool | ternary('automatic
 
 _patroni_cluster_port_psql: 5432
 _patroni_cluster_port_restapi: 8008
-_patroni_cluster_nodes: "{{ groups[_patroni_cluster_hostgroup] }}"
 _patroni_cluster_release: "{{ _patroni_release_postgresql | split('.') | first }}"
 _patroni_cluster_service_name: "{{ patroni_cluster_service_name | default('patroni') }}"
 _patroni_cluster_name: "{{ patroni_cluster_name }}"
@@ -80,6 +114,7 @@ _patroni_cluster_barman_pgpass_settings:
     host: "127.0.0.1"
     port: "{{ _patroni_haproxy_port_psql_master_local }}"
     database: replication
+_patroni_cluster_primary_members: "{{ patroni_cluster_primary_members | default([]) }}"
 
 _patroni_cluster_hba_base:
   - type: local
@@ -238,24 +273,18 @@ consul_backup_days: "{{ patroni_consul_backup_period | default('*') }}"
 _patroni_addrkeys: ["ansible_default_ipv4", "address"]
 _patroni_hostkeys: ["name", "address"]
 
+_patroni_haproxy_hostgroup: "{{ patroni_haproxy_hostgroup | default('patroni_haproxy') }}"
 _patroni_haproxy_config_file: "/etc/haproxy/haproxy.cfg"
 _patroni_haproxy_user: "haproxy"
 _patroni_haproxy_group: "haproxy"
 _patroni_haproxy_listen_addr: "{{ patroni_haproxy_listen_addr | default('*') }}"
 _patroni_haproxy_maxconn: "{{ patroni_haproxy_maxconn | default(1000) }}"
-_patroni_haproxy_addrattrs: "{{ _patroni_config_hostnames | ternary('ansible_fqdn', _patroni_addrkeys) }}"
-_patroni_haproxy_hostaddrs: "{{ _patroni_cluster_nodes |
-  map('extract', hostvars, _patroni_haproxy_addrattrs) }}"
-_patroni_haproxy_hostattrs: "{{ _patroni_cluster_nodes | zip(_patroni_haproxy_hostaddrs) }}"
-_patroni_haproxy_nodes: "{{ _patroni_haproxy_hostattrs |
-  map('zip', _patroni_hostkeys) |
-  map('map', 'reverse') |
-  map('community.general.dict') }}"
 _patroni_haproxy_port_ssh_master_local: 2222
 _patroni_haproxy_port_psql_master_local: "{{ patroni_haproxy_port_psql_master_local | default(5432) }}"
 _patroni_haproxy_port_psql_slave_local: "{{ patroni_haproxy_port_psql_slave_local | default(5433) }}"
+_patroni_haproxy_uri: "{{ patroni_haproxy_uri | default('master') }}"
 
-_patroni_barman_archive_server: "{{ patroni_archive_server | default(groups[_patroni_barman_hostgroup].0) }}"
+_patroni_barman_archive_server: "{{ patroni_barman_archive_server | default(groups[_patroni_barman_hostgroup].0) }}"
 _patroni_barman_user: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_group: "{{ patroni_barman_user | default('barman') }}"
 _patroni_barman_home: "/var/lib/barman"
@@ -288,7 +317,6 @@ _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default(
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 
 # Hardcoded values
-_patroni_groups_master: "_patroni_cluster_master"
 
 postgresql_hba_entries: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
 postgresql_release: "{{ _patroni_cluster_release }}"

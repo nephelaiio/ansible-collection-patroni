@@ -5,7 +5,7 @@
     patroni_bootstrap_allow: false
 
 - name: Manage Barman users
-  hosts: _patroni_cluster_master
+  hosts: "{{ _patroni_cluster_master_group }}"
   become: true
   vars_files:
     - main.yml
@@ -47,7 +47,7 @@
           - file
 
 - name: Manage Barman SSH access from cluster nodes
-  hosts: "{{ _patroni_cluster_hostgroup }}"
+  hosts: "{{ _patroni_cluster_member_group }}:{{ _patroni_standby_member_group }}"
   become: true
   serial: 1
   vars:
@@ -79,17 +79,15 @@
 
     - name: Distribute SSH public keys
       ansible.posix.authorized_key:
-        comment: "{{ item }}"
+        comment: "{{ _patroni_barman_archive_server }}"
         user: "{{ _patroni_barman_user }}"
         key: "{{ _postgresql_keypair.public_key }}"
-      loop_control:
-        label: "{{ _postgresql_user }}@{{ inventory_hostname }} -> {{ _patroni_barman_user }}@{{ item }}"
-      loop: "{{ groups[_patroni_barman_hostgroup] }}"
-      delegate_to: "{{ item }}"
+      delegate_to: "{{ _patroni_barman_archive_server }}"
 
     - name: Accept barman host key
-      ansible.builtin.command: ssh {{ _patroni_barman_user }}@{{ item }} -o StrictHostKeyChecking=accept-new hostname
-      loop: "{{ groups[_patroni_barman_hostgroup] }}"
+      ansible.builtin.command: ssh {{ _patroni_barman_user }}@{{ _server }} -o StrictHostKeyChecking=accept-new hostname
+      vars:
+        _server: "{{ _patroni_barman_archive_server }}"
       become: true
       become_user: "{{ _postgresql_user }}"
       tags: skip_ansible_lint
@@ -127,7 +125,7 @@
         key: "{{ _barman_keypair.public_key }}"
       loop_control:
         label: "{{ _patroni_barman_user }}@{{ inventory_hostname }} -> {{ _postgresql_user }}@{{ item }}"
-      loop: "{{ groups[_patroni_cluster_hostgroup] }}"
+      loop: "{{ _patroni_cluster_members }}"
       delegate_to: "{{ item }}"
 
     - name: Create Barman configuration directory

@@ -14,6 +14,7 @@
   ansible.builtin.set_fact:
     _api_username: "{{ _config_data.restapi.authentication.username }}"
     _api_password: "{{ _config_data.restapi.authentication.password }}"
+    _restart_status: "pending_restart"
   vars:
     _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
 
@@ -26,24 +27,23 @@
     status_code: 200
   register: _patroni_status_query
 
-- name: Restart node
-  ansible.builtin.uri:
-    url: "http://localhost:{{ _patroni_cluster_port_restapi }}/restart"
-    user: "{{ _api_username }}"
-    password: "{{ _api_password }}"
-    method: POST
-    body_format: json
-    body:
-      restart_pending: true
-  vars:
-    pending_restart: pending_restart
-  when:
-    - pending_restart in _patroni_status_query.json
-    - _patroni_status_query.json[pending_restart] | bool
+- name: Manage restart node tasks
+  when: _patroni_status_query.json[_restart_status] | default('false') | bool
+  block:
+    - name: Restart node
+      ansible.builtin.uri:
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/restart"
+        user: "{{ _api_username }}"
+        password: "{{ _api_password }}"
+        method: POST
+        body_format: json
+        body:
+          restart_pending: true
+      when: _restart_status in _patroni_status_query.json
 
-- name: Wait for node restart
-  ansible.builtin.pause:
-    seconds: 60
+    - name: Wait for node restart
+      ansible.builtin.pause:
+        seconds: 60
 
 - name: Query node status
   ansible.builtin.uri:

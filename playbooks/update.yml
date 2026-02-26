@@ -31,7 +31,7 @@
     - nephelaiio.patroni.update
 
 - name: Update Patroni PostgreSQL slaves
-  hosts: "_patroni_cluster_slave:!{{ _patroni_update_skip_hostgroup }}"
+  hosts: "{{ _patroni_cluster_slave_group }}:{{ _patroni_standby_member_group }}:!{{ _patroni_update_skip_hostgroup }}"
   become: true
   serial: 1
   any_errors_fatal: true
@@ -72,6 +72,15 @@
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
+    - name: Verify standby leader status
+      ansible.builtin.uri:
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/standby-leader"
+        method: GET
+        status_code: 200
+        timeout: 3
+      register: _patroni_status_query
+      ignore_errors: true
+
     - name: Verify replica pre-update status
       ansible.builtin.uri:
         url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica"
@@ -83,6 +92,75 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+      when: (_patroni_status_query.json.role | default('')) != 'standby_leader'
+
+    - name: Manage standby leader tasks
+      when: (_patroni_status_query.json.role | default('')) == 'standby_leader'
+      block:
+        - name: Check cluster state
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 10
+          register: _cluster_state
+
+        - name: Set cluster state facts
+          ansible.builtin.set_fact:
+            _cluster_leader: "{{ _leader | map(attribute='name') | first }}"
+          vars:
+            _members: "{{ _cluster_state.json.members }}"
+            _leader: "{{ _members | selectattr('role', 'equalto', 'standby_leader') }}"
+
+        - name: Debug cluster state
+          ansible.builtin.debug:
+            var: _cluster_state.json
+
+        - name: Debug cluster standby leader
+          ansible.builtin.debug:
+            var: _cluster_leader
+
+        - name: Verify replicas are healthy
+          ansible.builtin.assert:
+            that:
+              - _replicas | list | length > 0
+              - _replicas | selectattr('state', 'in', ['running', 'streaming']) | list | length > 0
+            fail_msg: "No healthy replicas found for switchover"
+            success_msg: "Healthy replicas detected, proceeding with switchover"
+          vars:
+            _members: "{{ _cluster_state.json.members }}"
+            _replicas: "{{ _members | selectattr('role', 'equalto', 'replica') }}"
+
+        - name: Switchover cluster role
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/switchover"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: POST
+            body_format: json
+            body:
+              leader: "{{ _cluster_leader }}"
+            status_code: 200
+            timeout: "{{ _patroni_cluster_switchover_timeout }}"
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+
+        - name: Verify replica pre-update status
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 3
+          vars:
+            _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+            _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
+          retries: 30
+          register: patroni_status
+          until: patroni_status is succeeded
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
     - name: Stop Patroni service
       ansible.builtin.service:
@@ -110,7 +188,7 @@
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
 - name: Update Patroni PostgreSQL master
-  hosts: "_patroni_cluster_master:!{{ _patroni_update_skip_hostgroup }}"
+  hosts: "{{ _patroni_cluster_master_group }}:!{{ _patroni_update_skip_hostgroup }}"
   become: true
   any_errors_fatal: true
   vars_files:

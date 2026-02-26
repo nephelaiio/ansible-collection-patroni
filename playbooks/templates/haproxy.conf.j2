@@ -24,28 +24,28 @@ listen stats
     stats enable
     stats uri /
 
-frontend master-ssh
+frontend {{ _patroni_haproxy_uri }}-ssh
     timeout client 5m
     bind {{ _conf_addr }}:{{ _conf_port_ssh_master_local }}
-    default_backend master-ssh
+    default_backend {{ _patroni_haproxy_uri }}-ssh
 
-backend master-ssh
+backend {{ _patroni_haproxy_uri }}-ssh
     timeout server 5m
     option httpchk
-    http-check send meth OPTIONS uri /master ver HTTP/1.0 hdr Authorization "Basic {{ _conf_check_auth }}"
+    http-check send meth OPTIONS uri /{{ _patroni_haproxy_uri }} ver HTTP/1.0 hdr Authorization "Basic {{ _conf_check_auth }}"
     http-check expect status 200
     default-server inter 3s fastinter 1s fall 3 rise 2 on-marked-down shutdown-sessions
 {% for _pgnode in _conf_pgnodes %}
     server {{ _pgnode.name }} {{ _pgnode.address }}:22 check port {{ _conf_port_restapi }}
 {% endfor %}
 
-frontend master-psql
+frontend {{ _patroni_haproxy_uri }}-psql
     bind {{ _conf_addr }}:{{ _conf_port_psql_master_local }}
-    default_backend master-psql
+    default_backend {{ _patroni_haproxy_uri }}-psql
 
-backend master-psql
+backend {{ _patroni_haproxy_uri }}-psql
     option httpchk
-    http-check send meth OPTIONS uri /master ver HTTP/1.0 hdr Authorization "Basic {{ _conf_check_auth }}"
+    http-check send meth OPTIONS uri /{{ _patroni_haproxy_uri }} ver HTTP/1.0 hdr Authorization "Basic {{ _conf_check_auth }}"
     http-check expect status 200
     default-server inter 3s fastinter 1s fall 3 rise 2 on-marked-down shutdown-sessions
 {% for _pgnode in _conf_pgnodes %}

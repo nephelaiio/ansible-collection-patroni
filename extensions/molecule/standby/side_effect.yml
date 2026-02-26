@@ -1,0 +1,443 @@
+---
+- name: Set cluster facts
+  ansible.builtin.import_playbook: nephelaiio.patroni.facts
+
+- name: List patroni primary databases
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Set patroni primary database fact
+      ansible.builtin.set_fact:
+        _patroni_primary_databases: "{{ _databases }}"
+      vars:
+        _results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _databases: "{{ _results | map(attribute='datname') }}"
+      delegate_to: localhost
+      delegate_facts: true
+
+- name: List patroni standby databases
+  hosts: _patroni_standby_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Set patroni secondary database fact
+      ansible.builtin.set_fact:
+        _patroni_secondary_databases: "{{ _secondaries }}"
+        _patroni_primary_databases: "{{ _primaries }}"
+      vars:
+        _results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _secondaries: "{{ _results | map(attribute='datname') }}"
+        _primaries: "{{ hostvars['localhost']['_patroni_primary_databases'] }}"
+
+    - name: Debug primary databases
+      ansible.builtin.debug:
+        var: _patroni_primary_databases
+
+    - name: Debug secondary databases
+      ansible.builtin.debug:
+        var: _patroni_secondary_databases
+
+    - name: Verify database in standby members
+      ansible.builtin.assert:
+        that: _secondaries | reject('in', _primaries) | length == 0
+      vars:
+        _primaries: "{{ _patroni_primary_databases }}"
+        _secondaries: "{{ _patroni_secondary_databases }}"
+
+- name: Create patroni standby database
+  hosts: all
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set patroni secondary database fact
+      ansible.builtin.set_fact:
+        patroni_cluster_databases:
+          - name: "{{ patroni_molecule_database }}"
+            roles:
+              - name: "{{ patroni_molecule_username }}"
+                privs: ALL
+          - name: "standby"
+            roles:
+              - name: "{{ patroni_molecule_username }}"
+                privs: ALL
+        patroni_tables:
+          - name: standby_table1
+            columns:
+              - Username character varying(50) NOT NULL
+              - CountryId integer NOT NULL
+          - name: standby_table2
+            columns:
+              - Username character varying(50) NOT NULL
+              - CountryId integer NOT NULL
+        patroni_cluster_roles:
+          - name: "{{ patroni_molecule_username }}"
+            password: "{{ patroni_molecule_password }}"
+          - name: standby
+            password: standby
+
+- name: Run nephelaiio.patroni.databases playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.databases
+
+- name: List patroni primary databases
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Create tables
+      community.postgresql.postgresql_table:
+        login_db: "standby"
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        name: "{{ _name }}"
+        columns: "{{ item.columns }}"
+      vars:
+        _name: "{{ item.name }}"
+      loop_control:
+        label: "Table: {{ _name }}"
+      loop: "{{ patroni_tables }}"
+      become_user: "{{ _postgresql_user }}"
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Set patroni primary database facts
+      ansible.builtin.set_fact:
+        _patroni_primary_databases: "{{ _databases }}"
+      vars:
+        _database_results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _databases: "{{ _database_results | map(attribute='datname') }}"
+      delegate_to: localhost
+      delegate_facts: true
+
+- name: List patroni standby databases
+  hosts: _patroni_standby_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query existing standby tables
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        login_db: "standby"
+        query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_table_results
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT datname FROM pg_database;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_database_results
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Verify standby status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+
+    - name: Set patroni secondary database fact
+      ansible.builtin.set_fact:
+        _patroni_secondary_databases: "{{ _secondaries }}"
+        _patroni_primary_databases: "{{ _primaries }}"
+        _patroni_secondary_tables: "{{ _tables }}"
+      vars:
+        _database_results: "{{ _patroni_database_results.query_result | default([]) }}"
+        _secondaries: "{{ _database_results | map(attribute='datname') }}"
+        _primaries: "{{ hostvars['localhost']['_patroni_primary_databases'] }}"
+        _table_results: "{{ _patroni_table_results.query_result | default([]) }}"
+        _tables: "{{ _table_results | map(attribute='table_name') }}"
+
+    - name: Debug primary databases
+      ansible.builtin.debug:
+        var: _patroni_primary_databases
+
+    - name: Debug secondary databases
+      ansible.builtin.debug:
+        var: _patroni_secondary_databases
+
+    - name: Debug primary tables
+      ansible.builtin.debug:
+        msg: "{{ patroni_tables | map(attribute='name') }}"
+
+    - name: Debug secondary tables
+      ansible.builtin.debug:
+        var: _patroni_secondary_tables
+
+    - name: Verify database and table in standby members
+      ansible.builtin.assert:
+        that:
+          - _secondaries | reject('in', _primaries) | length == 0
+          - _patroni_secondary_tables | reject('in', _tables) | length == 0
+      vars:
+        _primaries: "{{ _patroni_primary_databases }}"
+        _secondaries: "{{ _patroni_secondary_databases }}"
+        _tables: "{{ patroni_tables | map(attribute='name') }}"
+
+- name: Override patroni cluster and standby facts
+  hosts: all
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Override patroni standby database fact
+      ansible.builtin.set_fact:
+        patroni_config_dcs:
+          standby_cluster: null
+        patroni_cluster_standby: false
+        patroni_standby_promote_force: false
+      when: inventory_hostname in groups['_patroni_standby_member']
+
+    - name: Override patroni primary database fact
+      ansible.builtin.set_fact:
+        patroni_config_dcs:
+          standby_cluster:
+            host: "{{ groups['_patroni_standby_member'] | join(', ') }}"
+            port: "{{ _patroni_cluster_port_psql }}"
+            create_replica_methods:
+              - basebackup
+            primary_slot_name: "standby"
+        patroni_cluster_standby: true
+        patroni_standby_promote_force: true
+      when: inventory_hostname in groups['_patroni_cluster_member']
+
+    - name: Override patroni primary members fact
+      ansible.builtin.set_fact:
+        patroni_cluster_primary_members:
+          - patroni-standby-secondary-01
+          - patroni-standby-secondary-02
+          - patroni-standby-secondary-03
+
+- name: Run nephelaiio.patroni.configure playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
+  vars:
+    patroni_cluster_prefix_group: "cluster_failover"
+    patroni_standby_prefix_group: "standby_failover"
+
+- name: Validate promoted patroni standby members
+  hosts: _patroni_standby_failover_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Verify standby status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+
+- name: Validate promoted patroni cluster members
+  hosts: _patroni_cluster_failover_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Set cluster membership facts
+      ansible.builtin.set_fact:
+        _cluster_master: "{{ _is_master | bool }}"
+        _cluster_slave: "{{ _is_slave | bool }}"
+      vars:
+        _service: "{{ _postgresql_service_name }}.service"
+        _is_installed: "{{ _service in services }}"
+        _is_alien: "{{ (not _is_installed) or (_slave_query is failed) }}"
+        _is_member: "{{ not _is_alien }}"
+        _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"
+        _is_master: "{{ _is_member and not _is_slave }}"
+
+    - name: Verify cluster slave status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+      when: _cluster_slave | bool
+
+    - name: Verify cluster master status members
+      ansible.builtin.assert:
+        that: not _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+      when: _cluster_master | bool
+
+- name: Override patroni cluster and standby facts
+  hosts: all
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Override patroni standby database fact
+      ansible.builtin.set_fact:
+        patroni_config_dcs:
+          standby_cluster: null
+        patroni_cluster_standby: false
+        patroni_standby_promote_force: false
+      when: inventory_hostname in groups['_patroni_standby_failover_member']
+
+    - name: Override patroni primary database fact
+      ansible.builtin.set_fact:
+        patroni_config_dcs:
+          standby_cluster:
+            host: "{{ groups['_patroni_standby_failover_member'] | join(', ') }}"
+            port: "{{ _patroni_cluster_port_psql }}"
+            create_replica_methods:
+              - basebackup
+            primary_slot_name: "standby"
+        patroni_cluster_standby: true
+        patroni_standby_promote_force: true
+      when: inventory_hostname in groups['_patroni_cluster_failover_member']
+
+    - name: Override patroni primary members fact
+      ansible.builtin.set_fact:
+        patroni_cluster_primary_members:
+          - patroni-standby-primary-01
+          - patroni-standby-primary-02
+          - patroni-standby-primary-03
+
+- name: Run nephelaiio.patroni.configure playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
+  vars:
+    patroni_cluster_prefix_group: "cluster_failback"
+    patroni_standby_prefix_group: "standby_failback"
+
+- name: Validate promoted patroni standby members
+  hosts: _patroni_standby_failback_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Verify standby status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+
+- name: Validate promoted patroni cluster members
+  hosts: _patroni_cluster_failback_member
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Set PostgreSQL facts
+      ansible.builtin.include_role:
+        name: nephelaiio.patroni.postgresql
+        tasks_from: vars.yml
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Query cluster status
+      community.postgresql.postgresql_query:
+        query: "SELECT pg_is_in_recovery()"
+        db: postgres
+      become_user: "{{ _postgresql_user }}"
+      register: _slave_query
+
+    - name: Set cluster membership facts
+      ansible.builtin.set_fact:
+        _cluster_master: "{{ _is_master | bool }}"
+        _cluster_slave: "{{ _is_slave | bool }}"
+      vars:
+        _service: "{{ _postgresql_service_name }}.service"
+        _is_installed: "{{ _service in services }}"
+        _is_alien: "{{ (not _is_installed) or (_slave_query is failed) }}"
+        _is_member: "{{ not _is_alien }}"
+        _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"
+        _is_master: "{{ _is_member and not _is_slave }}"
+
+    - name: Verify cluster slave status members
+      ansible.builtin.assert:
+        that: _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+      when: _cluster_slave | bool
+
+    - name: Verify cluster master status members
+      ansible.builtin.assert:
+        that: not _slave | bool
+      vars:
+        _slave: "{{ _slave_query.query_result[0].pg_is_in_recovery }}"
+      when: _cluster_master | bool
