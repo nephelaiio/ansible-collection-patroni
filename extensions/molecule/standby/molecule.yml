@@ -206,7 +206,6 @@ provisioner:
         consul_datacenter_name: "consul_{{ patroni_cluster_name }}"
         consul_hostgroup_prefix: "{{ consul_datacenter_name }}"
         patroni_barman_archive_server: "{{ groups['patroni_barman'].1 }}"
-        patroni_haproxy_uri: standby-leader
 verifier:
   name: ansible
 scenario:
