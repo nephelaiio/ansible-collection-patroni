@@ -84,7 +84,6 @@ Cluster wide parameters
 | patroni_haproxy_maxconn                             |                           1000 | HAProxy max connections settings                             | false    |
 | patroni_haproxy_port_psql_master_local              |                           5432 | HAProxy local port for PostgreSQL master                     | false    |
 | patroni_haproxy_port_psql_slave_local               |                           5433 | HAProxy local port for PostgreSQL slave                      | false    |
-| patroni_haproxy_uri                                 |                         master | HAProxy uri value for configurations                         | false    |
 | patroni_barman_user                                 |                         barman | Barman user                                                  | false    |
 | patroni_barman_group                                |                         barman | Barman group                                                 | false    |
 | patroni_barman_conf_log_level                       |                           INFO | Barman log level                                             | false    |
