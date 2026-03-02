@@ -133,12 +133,6 @@
             _standby: "{{ _patroni_config_query.json.standby_cluster | default({}) }}"
           when: _standby == {}
 
-        - name: Set patroni cluster name fact for primary cluster
-          ansible.builtin.set_fact:
-            _patroni_primary_cluster_name: "{{ _patroni_cluster_name }}"
-          delegate_to: localhost
-          delegate_facts: true
-
     - name: Manage standby group members
       when: _patroni_cluster_standby | bool
       block:
@@ -149,14 +143,6 @@
               - not inventory_hostname in _primary
           vars:
             _primary: "{{ _patroni_cluster_primary_members | default([]) }}"
-
-        - name: Verify patroni cluster names
-          ansible.builtin.assert:
-            that: _primary != _standby
-            fail_msg: "Cluster names must be unique. Primary: {{ _primary }} - Standby: {{ _standby }}"
-          vars:
-            _primary: "{{ hostvars['localhost']['_patroni_primary_cluster_name'] }}"
-            _standby: "{{ _patroni_cluster_name }}"
 
         - name: Group standby members
           ansible.builtin.group_by:
