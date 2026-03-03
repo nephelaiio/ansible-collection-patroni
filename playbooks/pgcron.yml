@@ -1,0 +1,17 @@
+---
+- name: Manage Patroni pg_cron
+  hosts: "{{ _patroni_cluster_master_group }}"
+  any_errors_fatal: true
+  become: true
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Query existing pg_cron
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT * FROM cron.job;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_pgcron_results
+
+    - debug:
+        msg: "{{ _patroni_pgcron_results }}"
