@@ -174,7 +174,7 @@
     - name: Query cluster status
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
-        db: postgres
+        login_db: postgres
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -275,7 +275,7 @@
     - name: Query cluster status
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
-        db: postgres
+        login_db: postgres
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -302,7 +302,7 @@
     - name: Query cluster status
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
-        db: postgres
+        login_db: postgres
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -385,7 +385,7 @@
     - name: Query cluster status
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
-        db: postgres
+        login_db: postgres
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -412,7 +412,7 @@
     - name: Query cluster status
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
-        db: postgres
+        login_db: postgres
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 

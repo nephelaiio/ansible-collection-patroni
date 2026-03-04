@@ -239,7 +239,7 @@ _patroni_cluster_pg_cron_enable: "{{ patroni_cluster_pg_cron_enable | default(Tr
 _patroni_cluster_pg_cron_timezone: "GMT"
 _patroni_cluster_pg_cron_config: |
   cron.timezone =  '{{ _patroni_cluster_pg_cron_timezone }}'
-
+_patroni_cluster_pg_cron_jobs: "{{ patroni_cluster_pg_cron_jobs | default([]) }}"
 _patroni_cluster_pg_stat_statements_enable: "{{ patroni_cluster_pg_stat_statements_enable | default(True) }}"
 _patroni_cluster_pg_stat_statements_compute_query_id: "on"
 _patroni_cluster_pg_stat_statements_max: "{{ patroni_cluster_pg_stat_statements_max | default(5000) }}"

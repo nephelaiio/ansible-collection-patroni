@@ -98,7 +98,7 @@
 
     - name: Query data checksum
       community.postgresql.postgresql_query:
-        db: postgres
+        login_db: postgres
         query: "SHOW data_checksums"
       become: true
       become_user: "{{ _postgresql_user }}"
@@ -230,7 +230,7 @@
         - name: Query registered extensions
           community.postgresql.postgresql_query:
             query: "SELECT pg_current_logfile()"
-            db: postgres
+            login_db: postgres
           become: true
           become_user: postgres
           register: _log_query
@@ -247,7 +247,7 @@
         - name: Query registered extensions
           community.postgresql.postgresql_query:
             query: "SELECT extname FROM pg_extension"
-            db: postgres
+            login_db: postgres
           become: true
           become_user: postgres
           register: _extension_query
@@ -401,7 +401,7 @@
         - name: Query master role
           community.postgresql.postgresql_query:
             query: "SELECT pg_is_in_recovery()"
-            db: postgres
+            login_db: postgres
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
@@ -427,7 +427,7 @@
         - name: Query slave role
           community.postgresql.postgresql_query:
             query: "SELECT pg_is_in_recovery()"
-            db: postgres
+            login_db: postgres
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
