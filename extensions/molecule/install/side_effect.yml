@@ -58,6 +58,10 @@
   vars_files:
     - ../../../playbooks/vars/main.yml
   tasks:
+    - name: Wait for pg_cron executions
+      ansible.builtin.pause:
+        seconds: 60
+
     - name: Query existing pg_cron
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"

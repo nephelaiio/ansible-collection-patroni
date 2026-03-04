@@ -83,7 +83,7 @@
             '{{ item.database }}',
             active := '{{ item.active }}'
           );
-        login_db: "{{ item.database }}"
+        login_db: "{{ item.login_db | default(omit) }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.job_name }}"
@@ -93,7 +93,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "UPDATE cron.job set nodename = '' where jobname = '{{ item.job_name }}';"
-        login_db: "{{ item.database }}"
+        login_db: "{{ item.login_db | default(omit) }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.job_name }}"
@@ -110,7 +110,7 @@
             '{{ item.database }}',
             active := '{{ item.active }}'
           );
-        login_db: "{{ item.database }}"
+        login_db: "{{ item.login_db | default(omit) }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.jobname }}"
@@ -120,7 +120,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT cron.unschedule('{{ item.job_name }}');
-        login_db: "{{ item.database }}"
+        login_db: "{{ item.login_db | default(omit) }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.job_name }}"
