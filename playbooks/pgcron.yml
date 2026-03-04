@@ -1,4 +1,7 @@
 ---
+- name: Import facts playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.facts
+
 - name: Manage Patroni pg_cron
   hosts: "{{ _patroni_cluster_master_group }}"
   any_errors_fatal: true
@@ -6,6 +9,22 @@
   vars_files:
     - main.yml
   tasks:
+    - name: End play when there are no pg_cron jobs to manage
+      ansible.builtin.meta: end_play
+      when: _patroni_cluster_pg_cron_jobs | length == 0
+
+    - name: Verify pg_cron attributes
+      ansible.builtin.assert:
+        that:
+          - _job_name | length == 0
+          - _schedule | length == 0
+          - _command | length == 0
+      vars:
+        _pg_cron: "{{ _patroni_cluster_pg_cron_jobs }}"
+        _job_name: "{{ _pg_cron | rejectattr('job_name', 'defined') }}"
+        _schedule: "{{ _pg_cron | rejectattr('schedule', 'defined') }}"
+        _command: "{{ _pg_cron | rejectattr('command', 'defined') }}"
+
     - name: Query existing pg_cron
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
@@ -13,5 +32,96 @@
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_results
 
-    - debug:
-        msg: "{{ _patroni_pgcron_results }}"
+    - name: Set pg_cron job fact
+      ansible.builtin.set_fact:
+        _pgcron_create: "{{ _create }}"
+        _pgcron_existing: "{{ _existing }}"
+        _pgcron_modify: "{{ _modify_overwritten }}"
+        _pgcron_delete: "{{ _delete }}"
+      vars:
+        _default:
+          active: true
+          database: postgres
+          state: present
+        _pg_cron: "{{ _patroni_cluster_pg_cron_jobs | sort(attribute='job_name') }}"
+        _pg_cron_defaults: "{{ [_default] | product(_pg_cron) | map('combine') }}"
+        _existing: "{{ _patroni_pgcron_results.query_result | default([]) | sort(attribute='jobname') }}"
+        _present: "{{ _pg_cron_defaults | selectattr('state', 'equalto', 'present') }}"
+        _absent: "{{ _pg_cron_defaults | difference(_present) }}"
+        _target_names: "{{ _present | map(attribute='job_name') }}"
+        _create: "{{ _present | rejectattr('job_name', 'in', _existing_names) }}"
+        _existing_names: "{{ _existing | map(attribute='jobname') }}"
+        _existing_targets: "{{ _existing | selectattr('jobname', 'in', _target_names) }}"
+        _modify: "{{ _present | difference(_create) }}"
+        _modify_overwritten: "{{ _existing_targets | zip(_modify) | map('combine') }}"
+        _delete: "{{ _absent | selectattr('job_name', 'in', _existing_names) }}"
+
+    - name: Debug new pg_cron jobs
+      ansible.builtin.debug:
+        msg: "{{ _pgcron_create }}"
+
+    - name: Debug existing pg_cron jobs
+      ansible.builtin.debug:
+        msg: "{{ _pgcron_existing }}"
+
+    - name: Debug target pg_cron jobs
+      ansible.builtin.debug:
+        msg: "{{ _pgcron_modify }}"
+
+    - name: Debug stale pg_cron jobs
+      ansible.builtin.debug:
+        msg: "{{ _pgcron_delete }}"
+
+    - name: Create pg_cron jobs
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: |
+          SELECT cron.schedule_in_database(
+            '{{ item.job_name }}',
+            '{{ item.schedule }}',
+            $${{ item.command }}$$,
+            '{{ item.database }}',
+            active := '{{ item.active }}'
+          );
+        login_db: "{{ item.database }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ item.database }} - {{ item.job_name }}"
+      loop: "{{ _pgcron_create }}"
+
+    - name: Update pg_cron nodename jobs
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "UPDATE cron.job set nodename = '' where jobname = '{{ item.job_name }}';"
+        login_db: "{{ item.database }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ item.database }} - {{ item.job_name }}"
+      loop: "{{ _pgcron_create }}"
+
+    - name: Change pg_cron jobs
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: |
+          SELECT cron.alter_job(
+            '{{ item.jobid }}',
+            '{{ item.schedule }}',
+            $${{ item.command }}$$,
+            '{{ item.database }}',
+            active := '{{ item.active }}'
+          );
+        login_db: "{{ item.database }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ item.database }} - {{ item.jobname }}"
+      loop: "{{ _pgcron_modify }}"
+
+    - name: Destroy pg_cron jobs
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT cron.unschedule('{{ item.job_name }}');
+        login_db: "{{ item.database }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ item.database }} - {{ item.job_name }}"
+      loop: "{{ _pgcron_delete }}"

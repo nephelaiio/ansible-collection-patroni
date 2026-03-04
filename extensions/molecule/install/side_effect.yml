@@ -48,3 +48,100 @@
         _query: "{{ _postgresql_query_result | default({}) }}"
         _failed: "{{ _query.failed | default('false') }}"
         _query_result: "{{ _query.query_result | default([]) }}"
+
+- name: Import pgcron playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.pgcron
+
+- name: Verify pg_cron settings
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Query existing pg_cron
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT * FROM cron.job;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_pgcron_results
+
+    - name: Query running pg_cron jobs
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT * FROM cron.job_run_details order by start_time;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_pgcron_running
+
+    - name: Verify pg_cron jobs
+      ansible.builtin.assert:
+        that:
+          - (_created | length) == (_present | length)
+          - _running | length > 0
+      vars:
+        _default:
+          active: true
+          database: postgres
+          state: present
+        _pg_cron: "{{ _patroni_cluster_pg_cron_jobs | sort(attribute='job_name') }}"
+        _pg_cron_defaults: "{{ [_default] | product(_pg_cron) | map('combine') }}"
+        _existing: "{{ _patroni_pgcron_results.query_result | default([]) }}"
+        _present: "{{ _pg_cron_defaults | selectattr('state', 'equalto', 'present') }}"
+        _existing_names: "{{ _existing | map(attribute='jobname') }}"
+        _created: "{{ _present | selectattr('job_name', 'in', _existing_names) }}"
+        _running: "{{ _patroni_pgcron_running.query_result | default([]) }}"
+
+- name: Override pg_cron jobs
+  hosts: all
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Override pg_cron settings
+      ansible.builtin.set_fact:
+        patroni_cluster_pg_cron_jobs:
+          - job_name: molecule
+            schedule: "30 seconds"
+            command: "SELECT 1"
+            active: false
+          - job_name: test
+            schedule: "10 3 * * 6"
+            command: "SELECT 1"
+            state: absent
+          - job_name: inventory
+            schedule: "30 3 * * 6"
+            command: "SELECT 1"
+
+- name: Import pgcron playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.pgcron
+
+- name: Verify pg_cron settings
+  hosts: _patroni_cluster_master
+  become: true
+  vars_files:
+    - ../../../playbooks/vars/main.yml
+  tasks:
+    - name: Query existing pg_cron
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT * FROM cron.job;"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_pgcron_results
+
+    - name: Verify pg_cron jobs
+      ansible.builtin.assert:
+        that:
+          - (_targets_disabled | length) == (_existing_disabled | length)
+          - _absent | selectattr('job_name', 'in', _existing_names) | length == 0
+          - (_existing | length) == (_present | length)
+      vars:
+        _default:
+          active: true
+          database: postgres
+          state: present
+        _pg_cron: "{{ _patroni_cluster_pg_cron_jobs | sort(attribute='job_name') }}"
+        _pg_cron_defaults: "{{ [_default] | product(_pg_cron) | map('combine') }}"
+        _existing: "{{ _patroni_pgcron_results.query_result | default([]) }}"
+        _present: "{{ _pg_cron_defaults | selectattr('state', 'equalto', 'present') }}"
+        _existing_disabled: "{{ _existing | rejectattr('active') }}"
+        _targets_disabled: "{{ _present | rejectattr('active') }}"
+        _absent: "{{ _pg_cron_defaults | difference(_present) }}"
+        _existing_names: "{{ _existing | map(attribute='jobname') }}"

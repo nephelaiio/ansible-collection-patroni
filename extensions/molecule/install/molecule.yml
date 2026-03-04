@@ -135,6 +135,16 @@ provisioner:
           patroni_cluster_pgpass_settings:
             - user: "{{ patroni_molecule_username }}"
               password: "{{ patroni_molecule_password }}"
+          patroni_cluster_pg_cron_jobs:
+            - job_name: molecule
+              schedule: "30 seconds"
+              command: "SELECT 1"
+            - job_name: test
+              schedule: "10 3 * * 6"
+              command: "SELECT 1"
+            - job_name: inventory
+              schedule: "30 3 * * 6"
+              command: "SELECT 1"
 verifier:
   name: ansible
 scenario:
