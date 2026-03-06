@@ -111,6 +111,7 @@ Cluster wide parameters
 | patroni_standby_prefix_group                        |                        standby | Default prefix for standby hostgroups                        | false    |
 | patroni_cluster_prefix_group                        |                        cluster | Default prefix for cluster hostgroups                        | false    |
 | patroni_cluster_pg_cron_jobs                        |                             [] | Manage pg_cron jobs                                          | false    |
+| patroni_cluster_materialized_views                  |                             [] | Manage materialized views                                    | false    |
 
 where <node_object> follows the following json schema
 
