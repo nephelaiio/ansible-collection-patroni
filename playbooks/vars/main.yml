@@ -315,6 +315,7 @@ _patroni_cluster_fdw_server_suffix: "{{ patroni_cluster_fdw_server_suffix | defa
 _patroni_cluster_fdw_app_name_suffix: "{{ patroni_cluster_fdw_app_name_suffix | default('fdw') }}"
 _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default([]) }}"
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
+_patroni_cluster_materialized_views: "{{ patroni_cluster_materialized_views | default([]) }}"
 
 # Hardcoded values
 

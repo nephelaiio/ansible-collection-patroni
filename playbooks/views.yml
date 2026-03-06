@@ -1,0 +1,128 @@
+---
+- name: Import facts playbook
+  ansible.builtin.import_playbook: nephelaiio.patroni.facts
+
+- name: Manage Patroni materialized views
+  hosts: "{{ _patroni_cluster_master_group }}"
+  any_errors_fatal: true
+  become: true
+  vars_files:
+    - main.yml
+  tasks:
+    - name: End play when there are no materialized views to manage
+      ansible.builtin.meta: end_play
+      when: _patroni_cluster_materialized_views | length == 0
+
+    - name: Verify view attributes
+      ansible.builtin.assert:
+        that:
+          - _query | length == 0
+          - _name | length == 0
+      vars:
+        _views: "{{ _patroni_cluster_materialized_views }}"
+        _query: "{{ _views | rejectattr('query', 'defined') }}"
+        _name: "{{ _views | rejectattr('name', 'defined') }}"
+
+    - name: Set default view facts
+      ansible.builtin.set_fact:
+        _patroni_existing_views: []
+        _patroni_delete_views: []
+        _select_attrs: "nephelaiio.plugins.select_attributes"
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _patroni_views_overwritten: "{{ _view_defaults }}"
+      vars:
+        _default:
+          state: present
+          schema: public
+          login_db: postgres
+        _views: "{{ _patroni_cluster_materialized_views | sort(attribute='name') }}"
+        _view_defaults: "{{ [_default] | product(_views) | map('combine') }}"
+
+    - name: Query existing materialized views
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "SELECT * FROM pg_matviews;"
+        login_db: "{{ _db }}"
+      vars:
+        _db: "{{ item.login_db }}"
+      loop_control:
+        label: "{{ _db }}"
+      loop: "{{ _patroni_views_overwritten }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_view_results
+
+    - name: Set existing materialized view fact
+      ansible.builtin.set_fact:
+        _patroni_existing_views: "{{ _patroni_existing_views + [_view] }}"
+      vars:
+        _db: "{{ item.item.login_db }}"
+        _query: "{{ item.query_result | default([]) }}"
+        _matviewname: "{{ _query | map(attribute='matviewname') | flatten | first }}"
+        _view:
+          login_db: "{{ _db }}"
+          name: "{{ _matviewname }}"
+      loop_control:
+        label: "{{ _db }}"
+      loop: "{{ _patroni_view_results.results | default([]) }}"
+      when: _query | length > 0
+
+    - name: Set materialized view facts
+      ansible.builtin.set_fact:
+        _patroni_view_targets: "{{ _present }}"
+      vars:
+        _views: "{{ _patroni_views_overwritten }}"
+        _present: "{{ _views | selectattr('state', 'equalto', 'present') }}"
+
+    - name: Set materialized view to delete fact
+      ansible.builtin.set_fact:
+        _patroni_delete_views: "{{ _patroni_delete_views + _delete }}"
+      vars:
+        _views: "{{ _patroni_views_overwritten }}"
+        _absent: "{{ _views | selectattr('state', 'equalto', 'absent') }}"
+        _absent_login_db: "{{ _absent | selectattr('login_db', 'equalto', item.login_db) }}"
+        _delete: "{{ _absent_login_db | selectattr('name', 'equalto', item.name) }}"
+      loop: "{{ _patroni_existing_views }}"
+      when: _delete | length > 0
+
+    - name: Debug target materialized views
+      ansible.builtin.debug:
+        var: _patroni_view_targets
+
+    - name: Debug existing materialized views
+      ansible.builtin.debug:
+        var: _patroni_existing_views
+
+    - name: Debug materialized views to delete
+      ansible.builtin.debug:
+        var: _patroni_delete_views
+
+    - name: Manage materialized views
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: |
+          CREATE MATERIALIZED VIEW IF NOT EXISTS {{ _table }}
+          AS
+            {{ item.query }}
+          WITH DATA;
+        login_db: "{{ _db }}"
+      vars:
+        _db: "{{ item.login_db }}"
+        _table: "{{ item.schema }}.{{ item.name }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ _db }} - {{ _table }}"
+      loop: "{{ _patroni_view_targets }}"
+      changed_when: false
+
+    - name: Delete materialized views
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "DROP MATERIALIZED VIEW {{ _table }};"
+        login_db: "{{ _db }}"
+      vars:
+        _db: "{{ item.login_db }}"
+        _table: "{{ item.schema }}.{{ item.name }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ _db }} - {{ _table }}"
+      loop: "{{ _patroni_delete_views }}"
