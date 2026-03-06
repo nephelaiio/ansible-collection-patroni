@@ -159,6 +159,10 @@
   vars_files:
     - ../../../playbooks/vars/main.yml
   tasks:
+    - name: Set default values for existing views
+      ansible.builtin.set_fact:
+        _patroni_existing_views: []
+
     - name: Query existing materialized views
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
@@ -174,7 +178,7 @@
 
     - name: Set existing materialized view fact
       ansible.builtin.set_fact:
-        _patroni_existing_views: "{{ (_patroni_existing_views | default([])) + [_view] }}"
+        _patroni_existing_views: "{{ _patroni_existing_views + [_view] }}"
       vars:
         _db: "{{ item.item.login_db }}"
         _query: "{{ item.query_result | default([]) }}"
@@ -229,6 +233,10 @@
   vars_files:
     - ../../../playbooks/vars/main.yml
   tasks:
+    - name: Set default values for existing views
+      ansible.builtin.set_fact:
+        _patroni_existing_views: []
+
     - name: Query existing materialized views
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
@@ -244,7 +252,7 @@
 
     - name: Set existing materialized view fact
       ansible.builtin.set_fact:
-        _patroni_existing_views: "{{ (_patroni_existing_views | default([])) + [_view] }}"
+        _patroni_existing_views: "{{ _patroni_existing_views + [_view] }}"
       vars:
         _db: "{{ item.item.login_db }}"
         _query: "{{ item.query_result | default([]) }}"
