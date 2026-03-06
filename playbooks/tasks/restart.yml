@@ -2,11 +2,9 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
-- name: End play for offline hosts
+- name: End play when patroni service does not exist
   ansible.builtin.meta: end_host
-  vars:
-    _service_state: "{{ services[_postgresql_service_name].state | default('running') }}"
-  when: _service_state != 'running'
+  when: not _patroni_cluster_service_name in service
 
 - name: Stat Patroni configuration file
   ansible.builtin.stat:
