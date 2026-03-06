@@ -1,4 +1,13 @@
 ---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: End play for offline hosts
+  ansible.builtin.meta: end_host
+  vars:
+    _service_state: "{{ services[_postgresql_service_name].state | default('running') }}"
+  when: _service_state != 'running'
+
 - name: Stat Patroni configuration file
   ansible.builtin.stat:
     path: "{{ _patroni_cluster_config_file }}"
