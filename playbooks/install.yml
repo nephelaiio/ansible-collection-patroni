@@ -28,6 +28,9 @@
     consul_role: client
     consul_install_from_repo: true
 
+- name: Deploy patroni configure
+  ansible.builtin.import_playbook: nephelaiio.patroni.configure
+
 - name: Deploy PostgreSQL cluster
   ansible.builtin.import_playbook: nephelaiio.patroni.patroni
 
