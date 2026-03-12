@@ -85,7 +85,7 @@
       vars:
         _results: "{{ _postgresql_db_query.results | default([]) }}"
         _missing: "{{ _results | rejectattr('is_available') }}"
-        _missing_names: "{{ _missing | map(attribute='source') }}"
+        _missing_names: "{{ _missing | map(attribute='login_db') }}"
 
     - name: Query existing materialized views
       community.postgresql.postgresql_query:
