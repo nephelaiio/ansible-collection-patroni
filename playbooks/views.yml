@@ -27,6 +27,7 @@
       ansible.builtin.set_fact:
         _patroni_existing_views: []
         _patroni_delete_views: []
+        _patroni_query_views: []
         _select_attrs: "nephelaiio.plugins.select_attributes"
         _to_dict: "nephelaiio.plugins.to_dict"
         _patroni_views_overwritten: "{{ _view_defaults }}"
@@ -103,7 +104,7 @@
 
     - name: Set existing materialized view query fact
       ansible.builtin.set_fact:
-        _patroni_query_views: "{{ (_patroni_query_views | default([])) + [item] }}"
+        _patroni_query_views: "{{ _patroni_query_views + [item] }}"
       vars:
         _query_result: "{{ item.query_result | default([]) }}"
       loop: "{{ _patroni_view_results.results | default([]) }}"
@@ -121,6 +122,8 @@
           login_db: "{{ _db }}"
           name: "{{ _query.matviewname }}"
           schema: "{{ _query.schemaname }}"
+          query: "{{ _query.definition | regex_replace(_regex, '') | trim }}"
+        _regex: "AS \\\"\\?column\\?\\\";"
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _patroni_query_views | subelements('query_result') }}"
@@ -154,6 +157,24 @@
     - name: Debug materialized views to delete
       ansible.builtin.debug:
         var: _patroni_delete_views
+
+    - name: Recreate changed materialized views
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "DROP MATERIALIZED VIEW {{ _table }};"
+        login_db: "{{ _db }}"
+      vars:
+        _db: "{{ item.login_db }}"
+        _table: "{{ item.schema }}.{{ item.name }}"
+        _targets: "{{ _patroni_existing_views | selectattr('name', 'equalto', item.name) }}"
+        _target: "{{ _targets | first }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ _db }} - {{ _table }}"
+      loop: "{{ _patroni_view_targets }}"
+      when:
+        - _targets | length > 0
+        - (item.query | trim | lower) != (_target.query | lower)
 
     - name: Manage materialized views
       community.postgresql.postgresql_query:
