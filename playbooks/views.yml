@@ -93,27 +93,37 @@
         query: "SELECT * FROM pg_matviews;"
         login_db: "{{ _db }}"
       vars:
-        _db: "{{ item.login_db }}"
+        _db: "{{ item }}"
+        _target_dbs: "{{ _patroni_views_overwritten | map(attribute='login_db') | unique }}"
       loop_control:
         label: "{{ _db }}"
-      loop: "{{ _patroni_views_overwritten }}"
+      loop: "{{ _target_dbs }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_results
+
+    - name: Set existing materialized view query fact
+      ansible.builtin.set_fact:
+        _patroni_query_views: "{{ (_patroni_query_views | default([])) + [item] }}"
+      vars:
+        _query_result: "{{ item.query_result | default([]) }}"
+      loop: "{{ _patroni_view_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: _query_result | length > 0
 
     - name: Set existing materialized view fact
       ansible.builtin.set_fact:
         _patroni_existing_views: "{{ _patroni_existing_views + [_view] }}"
       vars:
-        _db: "{{ item.item.login_db }}"
-        _query: "{{ item.query_result | default([]) }}"
-        _matviewname: "{{ _query | map(attribute='matviewname') | flatten | first }}"
+        _db: "{{ item.0.item }}"
+        _query: "{{ item.1 }}"
         _view:
           login_db: "{{ _db }}"
-          name: "{{ _matviewname }}"
+          name: "{{ _query.matviewname }}"
+          schema: "{{ _query.schemaname }}"
       loop_control:
         label: "{{ _db }}"
-      loop: "{{ _patroni_view_results.results | default([]) }}"
-      when: _query | length > 0
+      loop: "{{ _patroni_query_views | subelements('query_result') }}"
 
     - name: Set materialized view facts
       ansible.builtin.set_fact:
