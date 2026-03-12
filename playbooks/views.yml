@@ -62,7 +62,7 @@
         _results: "{{ _patroni_view_schemas.results | default([]) }}"
         _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
         _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
-        _schemas: "{{ _patroni_view_schemas | map(attribute='schema') | flatten }}"
+        _schemas: "{{ _patroni_views_overwritten | map(attribute='schema') | flatten }}"
         _target_schemas_default: "{{ _schemas + ['public'] | unique }}"
         _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
 
