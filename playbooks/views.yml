@@ -40,15 +40,15 @@
 
     - name: Query existing PostgreSQL schemas
       community.postgresql.postgresql_query:
-        login_db: "{{ _db_source }}"
+        login_db: "{{ _db }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
           SELECT schema_name FROM information_schema.schemata;
         autocommit: true
       vars:
-        _db_source: "{{ item.source }}"
+        _db: "{{ item.login_db }}"
       loop_control:
-        label: "{{ _db_source }}"
+        label: "{{ _db }}"
       loop: "{{ _patroni_views_overwritten }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_schemas
@@ -62,9 +62,8 @@
         _results: "{{ _patroni_view_schemas.results | default([]) }}"
         _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
         _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
-        _tables: "{{ _patroni_view_schemas | map(attribute='tables') | flatten }}"
-        _target_schemas: "{{ _tables | selectattr('value.source_schema', 'defined') | map(attribute='value.source_schema') | lower }}"
-        _target_schemas_default: "{{ _target_schemas + ['public'] | unique }}"
+        _schemas: "{{ _patroni_view_schemas | map(attribute='schema') | flatten }}"
+        _target_schemas_default: "{{ _schemas + ['public'] | unique }}"
         _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
 
     - name: Query database
