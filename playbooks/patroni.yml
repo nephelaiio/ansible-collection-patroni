@@ -70,6 +70,7 @@
               - "postgresql-{{ postgresql_release }}-pgaudit"
               - "postgresql-{{ postgresql_release }}-cron"
               - "postgresql-{{ postgresql_release }}-partman"
+              - "postgresql-{{ postgresql_release }}-timescaledb"
 
     - name: Deploy PostgreSQL RedHat packages
       when: ansible_os_family == "RedHat"
@@ -98,6 +99,7 @@
               - "pgaudit_{{ postgresql_release }}"
               - "pg_cron_{{ postgresql_release }}"
               - "partman_{{ postgresql_release }}"
+              - "timescaledb_{{ postgresql_release }}"
 
     - name: Create PostgreSQL include dir
       ansible.builtin.file:

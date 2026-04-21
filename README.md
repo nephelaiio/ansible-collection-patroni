@@ -104,6 +104,12 @@ Cluster wide parameters
 | patroni_cluster_pg_partman_role                     |                       postgres | Enable pg_partman extension                                  | false    |
 | patroni_cluster_pg_partman_analyze                  |                            off | Enable pg_partman extension                                  | false    |
 | patroni_cluster_pg_partman_jobmon                   |                             on | Enable pg_partman extension                                  | false    |
+| patroni_cluster_pg_timescaledb_enable_chunkwise_aggregation  |                   off | Enable pg_timescaledb extension                              | false    |
+| patroni_cluster_pg_timescaledb_vectorized_aggregation.       |                   off | Enable pg_timescaledb extension                              | false    |
+| patroni_cluster_pg_timescaledb_enable_merge_on_cagg_refresh  |                   off | Enable pg_timescaledb extension                              | false    |
+| patroni_cluster_pg_timescaledb_max_background_workers        |                    16 | Enable pg_timescaledb extension                              | false    |
+| patroni_cluster_pg_timescaledb_restoring            |                            off | Enable pg_timescaledb extension                              | false    |
+| patroni_cluster_pg_timescaledb_telemetry_level      |                          basic | Enable pg_timescaledb extension                              | false    |
 | patroni_cluster_standby                             |                          false | Flag to set whether a cluster is in standby mode             | false    |
 | patroni_standby_promote_force                       |                          false | Flag required to enforce switch a cluster to standby mode    | false    |
 | patroni_cluster_primary_members                     |                             [] | A list of patroni primary members (for standby cluster only) | false    |
