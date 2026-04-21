@@ -266,17 +266,17 @@ _patroni_cluster_pg_partman_config: |
   pg_partman_bgw.jobmon = '{{ _patroni_cluster_pg_partman_jobmon }}'
 
 _patroni_cluster_pg_timescaledb_enable: "{{ patroni_cluster_pg_timescaledb_enable | default(True) }}"
-_patroni_cluster_pg_timescaledb_enable_chunkwise_aggregation: "{{ patroni_cluster_pg_timescaledb_enable_chkwise_aggre | default('off') }}"
-_patroni_cluster_pg_timescaledb_vectorized_aggregation: "{{ patroni_cluster_pg_timescaledb_vectorized_aggre | default('off') }}"
-_patroni_cluster_pg_timescaledb_enable_merge_on_cagg_refresh: "{{ patroni_cluster_pg_timescaledb_mergeoncaggrefresh | default('off') }}"
-_patroni_cluster_pg_timescaledb_max_background_workers: "{{ patroni_cluster_pg_timescaledb_maxbackgroundworkers | default('16') }}"
+_patroni_cluster_pg_timescaledb_enable_chunkwise: "{{ patroni_cluster_pg_timescaledb_enable_chunkwise | default('off') }}"
+_patroni_cluster_pg_timescaledb_vectorized: "{{ patroni_cluster_pg_timescaledb_vectorized | default('off') }}"
+_patroni_cluster_pg_timescaledb_enable_merge_on_cagg: "{{ patroni_cluster_pg_timescaledb_enable_merge_on_cagg | default('off') }}"
+_patroni_cluster_pg_timescaledb_maxbackgroundworkers: "{{ patroni_cluster_pg_timescaledb_maxbackgroundworkers | default('16') }}"
 _patroni_cluster_pg_timescaledb_restoring: "{{ patroni_cluster_pg_timescaledb_restoring | default('off') }}"
 _patroni_cluster_pg_timescaledb_telemetry_level: "{{ patroni_cluster_pg_timescaledb_telemetry_level | default('basic') }}"
 _patroni_cluster_pg_timescaledb_config: |
-  timescaledb.enable_chunkwise_aggregation = '{{ _patroni_cluster_pg_timescaledb_enable_chunkwise_aggregation }}'
-  timescaledb.vectorized_aggregation = '{{ _patroni_cluster_pg_timescaledb_vectorized_aggregation }}'
-  timescaledb.enable_merge_on_cagg_refresh = '{{ _patroni_cluster_pg_timescaledb_enable_merge_on_cagg_refresh }}'
-  timescaledb.max_background_workers = '{{ _patroni_cluster_pg_timescaledb_max_background_workers }}'
+  timescaledb.enable_chunkwise_aggregation = '{{ _patroni_cluster_pg_timescaledb_enable_chunkwise }}'
+  timescaledb.vectorized_aggregation = '{{ _patroni_cluster_pg_timescaledb_vectorized }}'
+  timescaledb.enable_merge_on_cagg_refresh = '{{ _patroni_cluster_pg_timescaledb_enable_merge_on_cagg }}'
+  timescaledb.max_background_workers = '{{ _patroni_cluster_pg_timescaledb_maxbackgroundworkers }}'
   timescaledb.restoring = '{{ _patroni_cluster_pg_timescaledb_restoring }}'
   timescaledb.telemetry_level = '{{ _patroni_cluster_pg_timescaledb_telemetry_level }}'
 
