@@ -274,7 +274,7 @@ _patroni_cluster_pg_timescaledb_restoring: "{{ patroni_cluster_pg_timescaledb_re
 _patroni_cluster_pg_timescaledb_telemetry_level: "{{ patroni_cluster_pg_timescaledb_telemetry_level | default('basic') }}"
 _patroni_cluster_pg_timescaledb_config: |
   timescaledb.enable_chunkwise_aggregation = '{{ _patroni_cluster_pg_timescaledb_enable_chunkwise_aggregation }}'
-  timescaledb.vectorized_aggregation = '{{ _pg_timescaledb_vectorized_aggregation }}'
+  timescaledb.vectorized_aggregation = '{{ _patroni_cluster_pg_timescaledb_vectorized_aggregation }}'
   timescaledb.enable_merge_on_cagg_refresh = '{{ _patroni_cluster_pg_timescaledb_enable_merge_on_cagg_refresh }}'
   timescaledb.max_background_workers = '{{ _patroni_cluster_pg_timescaledb_max_background_workers }}'
   timescaledb.restoring = '{{ _patroni_cluster_pg_timescaledb_restoring }}'
