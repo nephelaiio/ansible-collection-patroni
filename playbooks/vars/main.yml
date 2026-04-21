@@ -59,7 +59,7 @@ _patroni_config_pgaudit: 10-pgaudit.conf
 _patroni_config_pg_cron: 20-pg_cron.conf
 _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
 _patroni_config_pg_partman: 40-pg_partman.conf
-_patroni_config_pg_timescaledb: 50-pg_timescaledb.conf
+_patroni_config_timescaledb: 50-timescaledb.conf
 _patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) |
   nephelaiio.plugins.drop_attributes(patroni_dcs_attrs_exclude) | combine(patroni_defaults_dcs_slots) }}"
 _patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
@@ -213,7 +213,7 @@ _patroni_cluster_extensions:
   - name: pg_partman_bgw
     enabled: "{{ _patroni_cluster_pg_partman_enable }}"
   - name: timescaledb
-    enabled: "{{ _patroni_cluster_pg_timescaledb_enable }}"
+    enabled: "{{ _patroni_cluster_timescaledb_enable }}"
 
 _patroni_cluster_pgaudit_enable: "{{ patroni_cluster_pgadmin_enable | default(True) }}"
 _patroni_cluster_pgaudit_log: "{{ patroni_cluster_pgadmin_log | defaut('ALL') }}"
@@ -265,20 +265,20 @@ _patroni_cluster_pg_partman_config: |
   pg_partman_bgw.analyze = '{{ _patroni_cluster_pg_partman_analyze }}'
   pg_partman_bgw.jobmon = '{{ _patroni_cluster_pg_partman_jobmon }}'
 
-_patroni_cluster_pg_timescaledb_enable: "{{ patroni_cluster_pg_timescaledb_enable | default(True) }}"
-_patroni_cluster_pg_timescaledb_enable_chunkwise: "{{ patroni_cluster_pg_timescaledb_enable_chunkwise | default('off') }}"
-_patroni_cluster_pg_timescaledb_vectorized: "{{ patroni_cluster_pg_timescaledb_vectorized | default('off') }}"
-_patroni_cluster_pg_timescaledb_enable_merge_on_cagg: "{{ patroni_cluster_pg_timescaledb_enable_merge_on_cagg | default('off') }}"
-_patroni_cluster_pg_timescaledb_maxbackgroundworkers: "{{ patroni_cluster_pg_timescaledb_maxbackgroundworkers | default('16') }}"
-_patroni_cluster_pg_timescaledb_restoring: "{{ patroni_cluster_pg_timescaledb_restoring | default('off') }}"
-_patroni_cluster_pg_timescaledb_telemetry_level: "{{ patroni_cluster_pg_timescaledb_telemetry_level | default('basic') }}"
-_patroni_cluster_pg_timescaledb_config: |
-  timescaledb.enable_chunkwise_aggregation = '{{ _patroni_cluster_pg_timescaledb_enable_chunkwise }}'
-  timescaledb.vectorized_aggregation = '{{ _patroni_cluster_pg_timescaledb_vectorized }}'
-  timescaledb.enable_merge_on_cagg_refresh = '{{ _patroni_cluster_pg_timescaledb_enable_merge_on_cagg }}'
-  timescaledb.max_background_workers = '{{ _patroni_cluster_pg_timescaledb_maxbackgroundworkers }}'
-  timescaledb.restoring = '{{ _patroni_cluster_pg_timescaledb_restoring }}'
-  timescaledb.telemetry_level = '{{ _patroni_cluster_pg_timescaledb_telemetry_level }}'
+_patroni_cluster_timescaledb_enable: "{{ patroni_cluster_timescaledb_enable | default(True) }}"
+_patroni_cluster_timescaledb_enable_chunkwise: "{{ patroni_cluster_timescaledb_enable_chunkwise | default('off') }}"
+_patroni_cluster_timescaledb_vectorized: "{{ patroni_cluster_timescaledb_vectorized | default('off') }}"
+_patroni_cluster_timescaledb_enable_merge_on_cagg: "{{ patroni_cluster_timescaledb_enable_merge_on_cagg | default('off') }}"
+_patroni_cluster_timescaledb_maxbackgroundworkers: "{{ patroni_cluster_timescaledb_maxbackgroundworkers | default('16') }}"
+_patroni_cluster_timescaledb_restoring: "{{ patroni_cluster_timescaledb_restoring | default('off') }}"
+_patroni_cluster_timescaledb_telemetry_level: "{{ patroni_cluster_timescaledb_telemetry_level | default('basic') }}"
+_patroni_cluster_timescaledb_config: |
+  timescaledb.enable_chunkwise_aggregation = '{{ _patroni_cluster_timescaledb_enable_chunkwise }}'
+  timescaledb.vectorized_aggregation = '{{ _patroni_cluster_timescaledb_vectorized }}'
+  timescaledb.enable_merge_on_cagg_refresh = '{{ _patroni_cluster_timescaledb_enable_merge_on_cagg }}'
+  timescaledb.max_background_workers = '{{ _patroni_cluster_timescaledb_maxbackgroundworkers }}'
+  timescaledb.restoring = '{{ _patroni_cluster_timescaledb_restoring }}'
+  timescaledb.telemetry_level = '{{ _patroni_cluster_timescaledb_telemetry_level }}'
 
 consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
 consul_release: "{{ patroni_release_consul | default(patroni_defaults_release_consul) }}"

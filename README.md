@@ -104,12 +104,12 @@ Cluster wide parameters
 | patroni_cluster_pg_partman_role                     |                       postgres | Enable pg_partman extension                                  | false    |
 | patroni_cluster_pg_partman_analyze                  |                            off | Enable pg_partman extension                                  | false    |
 | patroni_cluster_pg_partman_jobmon                   |                             on | Enable pg_partman extension                                  | false    |
-| patroni_cluster_pg_timescaledb_enable_chunkwise     |                            off | Enable pg_timescaledb extension                              | false    |
-| patroni_cluster_pg_timescaledb_vectorized_aggre     |                            off | Enable pg_timescaledb extension                              | false    |
-| patroni_cluster_pg_timescaledb_enable_merge_on_cagg |                            off | Enable pg_timescaledb extension                              | false    |
-| patroni_cluster_pg_timescaledb_maxbackgroundworkers |                             16 | Enable pg_timescaledb extension                              | false    |
-| patroni_cluster_pg_timescaledb_restoring            |                            off | Enable pg_timescaledb extension                              | false    |
-| patroni_cluster_pg_timescaledb_telemetry_level      |                          basic | Enable pg_timescaledb extension                              | false    |
+| patroni_cluster_timescaledb_enable_chunkwise        |                            off | Enable timescaledb extension                                 | false    |
+| patroni_cluster_timescaledb_vectorized_aggre        |                            off | Enable timescaledb extension                                 | false    |
+| patroni_cluster_timescaledb_enable_merge_on_cagg    |                            off | Enable timescaledb extension                                 | false    |
+| patroni_cluster_timescaledb_maxbackgroundworkers    |                             16 | Enable timescaledb extension                                 | false    |
+| patroni_cluster_timescaledb_restoring               |                            off | Enable timescaledb extension                                 | false    |
+| patroni_cluster_timescaledb_telemetry_level         |                          basic | Enable timescaledb extension                                 | false    |
 | patroni_cluster_standby                             |                          false | Flag to set whether a cluster is in standby mode             | false    |
 | patroni_standby_promote_force                       |                          false | Flag required to enforce switch a cluster to standby mode    | false    |
 | patroni_cluster_primary_members                     |                             [] | A list of patroni primary members (for standby cluster only) | false    |
