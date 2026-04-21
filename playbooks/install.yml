@@ -54,10 +54,10 @@
   vars:
     _patroni_extension: pg_partman
 
-- name: Deploy timescaledb extension
+- name: Deploy pg_timescaledb extension
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:
-    _patroni_extension: timescaledb
+    _patroni_extension: pg_timescaledb
 
 - name: Deploy Barman nodes
   ansible.builtin.import_playbook: nephelaiio.patroni.barman
