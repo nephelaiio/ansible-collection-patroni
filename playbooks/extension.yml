@@ -1,7 +1,4 @@
 ---
-- name: Restart cluster nodes
-  ansible.builtin.import_playbook: nephelaiio.patroni.restart
-
 - name: Deploy Patroni extension - {{ _patroni_extension }}
   hosts: "{{ _patroni_cluster_master_group }}"
   any_errors_fatal: true

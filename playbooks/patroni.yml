@@ -333,3 +333,6 @@
         - patroni_reload
         - postgresql_reload
       tags: always
+
+- name: Restart cluster nodes
+  ansible.builtin.import_playbook: nephelaiio.patroni.restart
