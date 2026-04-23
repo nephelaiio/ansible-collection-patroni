@@ -34,6 +34,9 @@
 - name: Deploy PostgreSQL cluster
   ansible.builtin.import_playbook: nephelaiio.patroni.patroni
 
+- name: Restart cluster nodes
+  ansible.builtin.import_playbook: nephelaiio.patroni.restart
+
 - name: Deploy pgaudit extension
   ansible.builtin.import_playbook: nephelaiio.patroni.extension
   vars:

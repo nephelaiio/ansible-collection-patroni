@@ -9,8 +9,8 @@ driver:
 platforms:
   - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-01
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 4
+    cpu: 1
+    memory: 2
     size: 30G
     groups:
       - patroni_cluster
@@ -18,8 +18,8 @@ platforms:
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-02
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 4
+    cpu: 1
+    memory: 2
     size: 30G
     groups:
       - patroni_cluster
@@ -27,8 +27,8 @@ platforms:
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-primary-03
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 4
+    cpu: 1
+    memory: 2
     size: 30G
     groups:
       - patroni_cluster
@@ -84,16 +84,16 @@ platforms:
       - patroni_secondary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-01
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 2
+    cpu: 1
+    memory: 1
     size: 30G
     groups:
       - patroni_haproxy
       - patroni_primary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-haproxy-02
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 2
+    cpu: 1
+    memory: 1
     size: 30G
     groups:
       - patroni_haproxy
@@ -101,7 +101,7 @@ platforms:
   - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
-    memory: 4
+    memory: 2
     size: 30G
     groups:
       - patroni_barman
@@ -109,15 +109,15 @@ platforms:
   - name: patroni-${MOLECULE_SCENARIO_NAME}-barman-02
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 1
-    memory: 4
+    memory: 2
     size: 30G
     groups:
       - patroni_barman
       - patroni_secondary
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-01
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 4
+    cpu: 1
+    memory: 2
     size: 30G
     groups:
       - patroni_cluster
@@ -125,8 +125,8 @@ platforms:
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-02
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 4
+    cpu: 1
+    memory: 2
     size: 30G
     groups:
       - patroni_cluster
@@ -134,8 +134,8 @@ platforms:
       - patroni_consul_client
   - name: patroni-${MOLECULE_SCENARIO_NAME}-secondary-03
     image: "${MOLECULE_KVM_IMAGE}"
-    cpu: 2
-    memory: 4
+    cpu: 1
+    memory: 2
     size: 30G
     groups:
       - patroni_cluster
