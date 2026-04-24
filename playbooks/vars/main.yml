@@ -77,6 +77,7 @@ _patroni_watchdog_mode: "{{ _patroni_watchdog_enable | bool | ternary('automatic
 
 _patroni_cluster_port_psql: 5432
 _patroni_cluster_port_restapi: 8008
+_patroni_cluster_restart_timeout: "{{ patroni_cluster_restart_timeout | default('30') }}"
 _patroni_cluster_release: "{{ _patroni_release_postgresql | split('.') | first }}"
 _patroni_cluster_service_name: "{{ patroni_cluster_service_name | default('patroni') }}"
 _patroni_cluster_name: "{{ patroni_cluster_name }}"

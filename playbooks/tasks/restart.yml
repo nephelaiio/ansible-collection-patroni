@@ -46,6 +46,7 @@
         body_format: json
         body:
           restart_pending: true
+          timeout: "{{ _patroni_cluster_restart_timeout }}"
       when: _restart_status in _patroni_status_query.json
 
     - name: Wait for node restart
