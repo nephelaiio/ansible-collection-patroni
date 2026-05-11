@@ -1,0 +1,10 @@
+---
+name: build
+permissions:
+  contents: read
+on:
+  pull_request:
+    branches: ["main", "master"]
+jobs:
+  build:
+    uses: pokerops/ansible-utils/.github/workflows/build.yml@master

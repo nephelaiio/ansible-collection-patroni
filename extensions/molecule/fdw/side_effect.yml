@@ -13,14 +13,29 @@
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
 
+    - name: Set PostgreSQL default facts
+      ansible.builtin.set_fact:
+        _patroni_fdw_list: "{{ _fdw }}"
+        _patroni_fdw_databases: []
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw | dict2items }}"
+
     - name: Set PostgreSQL FDW fact
       ansible.builtin.set_fact:
-        _patroni_fdw_databases: "{{ _tables_overwritten }}"
+        _patroni_fdw_databases: "{{ _patroni_fdw_databases + [_map_default] }}"
       vars:
-        _fdw: "{{ _patroni_cluster_fdw | sort(attribute='remote') }}"
-        _tables: "{{ _fdw | map(attribute='tables') | map('dict2items') }}"
-        _tables_dict: "{{ _tables | map('nephelaiio.plugins.to_dict', 'tables') }}"
-        _tables_overwritten: "{{ _fdw | zip(_tables_dict) | map('combine') }}"
+        _remote: "{{ item.0.key }}"
+        _source: "{{ item.1.source }}"
+        _tables: "{{ item.1.tables }}"
+        _table_items: "{{ _tables | dict2items }}"
+        _map_default:
+          remote: "{{ _remote }}"
+          source: "{{ _source }}"
+          users: "{{ item.1.users }}"
+          tables: "{{ _table_items }}"
+      loop_control:
+        label: "{{ _remote }} - {{ _source }}"
+      loop: "{{ _patroni_fdw_list | subelements('value') }}"
 
     - name: Create schemas
       community.postgresql.postgresql_schema:
@@ -39,9 +54,10 @@
       community.postgresql.postgresql_table:
         login_db: "{{ _db }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        name: "{{ _name }}"
+        name: "{{ _schema }}.{{ _name }}"
         columns: "{{ item.1.value.columns }}"
       vars:
+        _schema: "{{ item.1.value.source_schema | default('public') }}"
         _name: "{{ item.1.key }}"
         _db: "{{ item.0.source }}"
       loop_control:
@@ -63,42 +79,43 @@
     - name: Override fdw fact
       ansible.builtin.set_fact:
         patroni_cluster_fdw:
-          - source: "{{ patroni_molecule_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_molecule_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              molecule_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_test_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_test_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-            tables:
-              test_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_bladb_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              bladb_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-                source_schema: bladb_source_schema
-                remote_schema: bladb_remote_schema
+          remote_molecule:
+            - source: "{{ patroni_molecule_database }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
+              tables:
+                molecule_table1:
+                  columns:
+                    - '"Username" character varying(50) NOT NULL'
+                    - '"CountryId" integer NOT NULL'
+          remote_test:
+            - source: "{{ patroni_test_database }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+              tables:
+                test_table1:
+                  columns:
+                    - '"Username" character varying(50) NOT NULL'
+                    - '"CountryId" integer NOT NULL'
+          remote_BlaDB:
+            - source: "{{ patroni_bladb_database }}"
+              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
+              tables:
+                bladb_table1:
+                  columns:
+                    - '"Username" character varying(50) NOT NULL'
+                    - '"CountryId" integer NOT NULL'
+                  source_schema: bladb_source_schema
+                  remote_schema: bladb_remote_schema
 
 - name: Run nephelaiio.patroni.fdw playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.fdw
@@ -114,45 +131,33 @@
     - name: Override fdw fact
       ansible.builtin.set_fact:
         patroni_cluster_fdw:
-          - source: "{{ patroni_molecule_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_molecule_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              molecule_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_test_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_test_database }}"
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              test_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-          - source: "{{ patroni_bladb_database }}"
-            remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
-            state: absent
-            users:
-              molecule:
-                password: "{{ patroni_molecule_password }}"
-              test:
-                password: "{{ patroni_test_password }}"
-            tables:
-              bladb_table1:
-                columns:
-                  - Username character varying(50) NOT NULL
-                  - CountryId integer NOT NULL
-                source_schema: bladb_source_schema
-                remote_schema: bladb_remote_schema
+          remote_molecule:
+            - source: "{{ patroni_molecule_database }}"
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
+              tables:
+                molecule_table1:
+                  columns:
+                    - '"Username" character varying(50) NOT NULL'
+                    - '"CountryId" integer NOT NULL'
+          remote_BlaDB:
+            - source: "{{ patroni_bladb_database }}"
+              state: absent
+              users:
+                molecule:
+                  password: "{{ patroni_molecule_password }}"
+                test:
+                  password: "{{ patroni_test_password }}"
+              tables:
+                bladb_table1:
+                  columns:
+                    - '"Username" character varying(50) NOT NULL'
+                    - '"CountryId" integer NOT NULL'
+                  source_schema: bladb_source_schema
+                  remote_schema: bladb_remote_schema
 
 - name: Run nephelaiio.patroni.fdw playbook
   ansible.builtin.import_playbook: nephelaiio.patroni.fdw
