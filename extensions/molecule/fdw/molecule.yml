@@ -179,7 +179,7 @@ provisioner:
                   test:
                     password: "{{ patroni_test_password }}"
                 tables:
-                  bladb_table1:
+                  BlaDB_table1:
                     columns:
                       - Username character varying(50) NOT NULL
                       - CountryId integer NOT NULL

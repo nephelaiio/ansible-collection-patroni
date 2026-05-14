@@ -91,6 +91,15 @@
                   columns:
                     - '"Username" character varying(50) NOT NULL'
                     - '"CountryId" integer NOT NULL'
+            - source: "{{ patroni_test_database }}"
+              users:
+                test:
+                  password: "{{ patroni_test_password }}"
+              tables:
+                molecule_table3:
+                  columns:
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
           remote_test:
             - source: "{{ patroni_test_database }}"
               users:
@@ -110,7 +119,7 @@
                 test:
                   password: "{{ patroni_test_password }}"
               tables:
-                bladb_table1:
+                BlaDB_table1:
                   columns:
                     - '"Username" character varying(50) NOT NULL'
                     - '"CountryId" integer NOT NULL'
@@ -143,6 +152,15 @@
                   columns:
                     - '"Username" character varying(50) NOT NULL'
                     - '"CountryId" integer NOT NULL'
+            - source: "{{ patroni_test_database }}"
+              users:
+                test:
+                  password: "{{ patroni_test_password }}"
+              tables:
+                molecule_table3:
+                  columns:
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
           remote_BlaDB:
             - source: "{{ patroni_bladb_database }}"
               state: absent
@@ -152,7 +170,7 @@
                 test:
                   password: "{{ patroni_test_password }}"
               tables:
-                bladb_table1:
+                BlaDB_table1:
                   columns:
                     - '"Username" character varying(50) NOT NULL'
                     - '"CountryId" integer NOT NULL'

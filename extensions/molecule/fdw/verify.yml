@@ -16,12 +16,12 @@
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
         _attrs:
           - password
-        _targets: "{{ _fdw | map(_drop_attrs, _attrs) | sort(attribute='remote') }}"
+        _targets: "{{ _fdw | map(_drop_attrs, _attrs) | sort(attribute='source') }}"
         _map_format: "nephelaiio.plugins.map_format"
         _to_dict: "nephelaiio.plugins.to_dict"
         _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
-        _foreign_servers: "{{ _targets | map(attribute='remote') }}"
-        _foreign_servers_format: "{{ _foreign_servers | map(_map_format, '%s_' + _server_suffix) | map('lower') }}"
+        _servers: "{{ _targets | map(_map_join, ['source', 'remote'], '_') }}"
+        _foreign_servers_format: "{{ _servers | map(_map_format, '%s_' + _server_suffix) | map('lower') }}"
         _foreign_servers_dict: "{{ _foreign_servers_format | map(_to_dict, 'foreign_server') }}"
         _targets_overwritten: "{{ _targets | zip(_foreign_servers_dict) | map('combine') }}"
 
@@ -40,10 +40,10 @@
 
     - name: Set PostgreSQL foreign data wrapper server facts
       ansible.builtin.set_fact:
-        _fdw_existing_servers: "{{ _query }}"
+        _fdw_existing_servers: "{{ _query | map(attribute='query_result') | flatten | unique }}"
       vars:
         _results: "{{ _patroni_fdw_server_results.results | default([]) }}"
-        _query: "{{ _results | map(attribute='query_result') | flatten }}"
+        _query: "{{ _results | selectattr('query_result') }}"
 
     - name: Debug existing FDW servers
       ansible.builtin.debug:
@@ -130,28 +130,36 @@
     - name: Query existing foreign tables
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT * FROM Information_schema.foreign_table_options;
-        login_db: "{{ _db_source }}"
+        query: SELECT * FROM Information_schema.foreign_tables WHERE foreign_server_name=lower('{{ _foreign_server }}');
+        login_db: "{{ _db }}"
       vars:
-        _db_source: "{{ item.source }}"
+        _foreign_server: "{{ item.foreign_server }}"
+        _db: "{{ item.source }}"
       loop_control:
-        label: "{{ _db_source }}"
+        label: "{{ _db }}"
       loop: "{{ _fdw_targets }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_table_results
+      no_log: "{{ _patroni_nolog }}"
 
-    - name: Set existing FDW tables fact
+    - name: Set existing FDW server fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_list: "{{ _query }}"
+      vars:
+        _query: "{{ _patroni_fdw_table_results.results | selectattr('query_result') }}"
+
+    - name: Build existing FDW tables fact
       ansible.builtin.set_fact:
         _fdw_existing_tables: "{{ _fdw_existing_tables + [_map_tables] }}"
       vars:
-        _query: "{{ item.query_result | default([]) }}"
+        _remote: "{{ item.item.remote }}"
         _map_tables:
           source: "{{ item.item.source }}"
-          tables: "{{ _query }}"
+          remote: "{{ _remote }}"
+          tables: "{{ item.query_result }}"
       loop_control:
-        label: "{{ item.item.remote }}"
-      loop: "{{ _patroni_fdw_table_results.results | default([]) }}"
-      when: _query | length > 0
+        label: "{{ _remote }}"
+      loop: "{{ _patroni_fdw_existing_list }}"
 
     - name: Debug existing tables
       ansible.builtin.debug:
@@ -168,12 +176,11 @@
     - name: Validate PostgreSQL foreign data wrapper tables for target databases
       ansible.builtin.assert:
         that:
-          - _tables | reject('in', _existing_table_names) | length == 0
-          - (_tables | length) == (_existing_table_names | length)
+          - _tables_format | reject('in', _existing_tables) | length == 0
+          - (_tables_format | length) == (_existing_tables | length)
       vars:
         _sources: "{{ _fdw_targets | map(attribute='source') }}"
         _tables: "{{ _fdw_targets | map(attribute='tables') | flatten | map(attribute='key') | flatten }}"
+        _tables_format: "{{ _tables | map(_map_format, '%s_remote') }}"
         _existing_source: "{{ _fdw_existing_tables | selectattr('source', 'in', _sources) }}"
-        _existing_tables: "{{ _existing_source | map(attribute='tables') | flatten }}"
-        _existing_table_objects: "{{ _existing_tables | selectattr('option_name', 'equalto', 'table_name') }}"
-        _existing_table_names: "{{ _existing_table_objects | map(attribute='option_value') | flatten }}"
+        _existing_tables: "{{ _existing_source | map(attribute='tables') | flatten | map(attribute='foreign_table_name') | unique }}"
