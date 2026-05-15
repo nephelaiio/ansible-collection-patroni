@@ -600,7 +600,7 @@
         _db_source: "{{ _server.source }}"
         _table_name: "{{ _table.key }}"
         _foreign_table_name: "{{ _source_schema }}.{{ _table_name }}_{{ _suffix }}"
-        _columns: "{{ _table.value.columns | join(', ') }}"
+        _columns: '{{ _table.value.columns | map(''split'', '' '', 1) | map(''join'', ''" '') | map(''regex_replace'', ''^'', ''"'') | join('', '') }}'
         _remote_schema: "{{ _table.value.remote_schema }}"
         _source_schema: "{{ _table.value.source_schema }}"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
