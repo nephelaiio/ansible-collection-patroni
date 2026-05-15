@@ -312,16 +312,28 @@
         _target_server: "{{ _fdw | selectattr('foreign_server', 'equalto', _foreign_server) }}"
         _target_tables: "{{ _target_server | map(attribute='tables') | flatten | map(attribute='key') | flatten }}"
         _target_tables_format: "{{ _target_tables | map(_map_format, '%s_' + _suffix) }}"
-        _orphan_tables: "{{ item.tables | rejectattr('foreign_table_name', 'in', _target_tables_format) }}"
+        _orphan_tables_filter: "{{ item.tables | rejectattr('foreign_table_name', 'in', _target_tables_format) }}"
+        _orphan_table_names: "{{ _orphan_tables_filter | map(attribute='foreign_table_name') }}"
+        _orphan_table_names_dict: "{{ _orphan_table_names | map(_to_dict, 'name') }}"
+        _orphan_table_schemas: "{{ _orphan_tables_filter | map(attribute='foreign_table_schema') }}"
+        _orphan_table_schemas_dict: "{{ _orphan_table_schemas | map(_to_dict, 'source_schema') }}"
+        _orphan_tables: "{{ _orphan_table_names_dict | zip(_orphan_table_schemas_dict) | map('combine') }}"
         _absent_tables_filter: "{{ _target_server | selectattr('state', 'equalto', 'absent') }}"
-        _absent_tables: "{{ _absent_tables_filter | map(attribute='tables') | flatten }}"
+        _absent_tables_flatten: "{{ _absent_tables_filter | map(attribute='tables') | flatten }}"
+        _absent_table_names: "{{ _absent_tables_flatten | map(attribute='key') }}"
+        _absent_table_format: "{{ _absent_table_names | map(_map_format, '%s_' + _suffix) }}"
+        _absent_table_names_dict: "{{ _absent_table_format | map(_to_dict, 'name') }}"
+        _absent_table_schemas: "{{ _absent_tables_flatten | map(attribute='value.source_schema') }}"
+        _absent_table_schemas_dict: "{{ _absent_table_schemas | map(_to_dict, 'source_schema') }}"
+        _absent_tables: "{{ _absent_table_names_dict | zip(_absent_table_schemas_dict) | map('combine') }}"
         _tables: "{{ _orphan_tables + _absent_tables }}"
+        _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
         _map_tables:
           source: "{{ item.source }}"
           remote: "{{ item.remote }}"
           foreign_server: "{{ _foreign_server }}"
           tables: "{{ _tables }}"
-          users: "{{ _target_users | map(_to_dict, 'key') }}"
+          users: "{{ _target_users }}"
       loop_control:
         label: "Server: {{ _foreign_server }}"
       loop: "{{ _patroni_fdw_existing }}"
@@ -393,15 +405,19 @@
 
     - name: Debug new foreign data wrappers
       ansible.builtin.debug:
-        msg: "{{ _fdw }}"
+        msg: "{{ _fdw | zip(_users_dict) | map('combine') }}"
       vars:
-        _fdw: "{{ _patroni_cluster_fdw_create | map(_drop_attrs, ['password']) }}"
+        _fdw: "{{ _patroni_cluster_fdw_create }}"
+        _users: "{{ _fdw | map(attribute='users') | map('map', attribute='key') }}"
+        _users_dict: "{{ _users | map(_to_dict, 'users') }}"
 
     - name: Debug foreign data wrapper targets
       ansible.builtin.debug:
-        msg: "{{ _fdw }}"
+        msg: "{{ _fdw | zip(_users_dict) | map('combine') }}"
       vars:
         _fdw: "{{ _patroni_cluster_fdw_update | map(_drop_attrs, ['password']) }}"
+        _users: "{{ _fdw | map(attribute='users') | map('map', attribute='key') }}"
+        _users_dict: "{{ _users | map(_to_dict, 'users') }}"
 
     - name: Debug stale remote foreign data wrappers
       ansible.builtin.debug:
@@ -696,12 +712,9 @@
         _db_source: "{{ _server.source }}"
         _foreign_server: "{{ _server.foreign_server }}"
         _db_remote: "{{ _server.remote }}"
-        _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
-        _is_key: "{{ _table.key is defined }}"
-        _table_key: "{{ _table.key }}_{{ _suffix }}"
-        _table_filter: "{{ _table_key if _is_key else _table.foreign_table_name }}"
-        _table_name: "{{ _schema }}.{{ _table_filter }}"
-        _users: "{{ _server.users | map(attribute='key') | join(', ') }}"
+        _schema: "{{ _table.source_schema }}"
+        _table_name: "{{ _schema }}.{{ _table.name }}"
+        _users: "{{ _server.users | join(', ') }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Database: {{ _db_source }} - Foreign_table: {{ _table_name }}"
       loop: "{{ _patroni_fdw_delete_tables | subelements('tables') }}"
@@ -724,11 +737,8 @@
         _db_source: "{{ _server.source }}"
         _foreign_server: "{{ _server.foreign_server }}"
         _db_remote: "{{ _server.remote }}"
-        _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
-        _is_key: "{{ _table.key is defined }}"
-        _table_key: "{{ _table.key }}_{{ _suffix }}"
-        _table_filter: "{{ _table_key if _is_key else _table.foreign_table_name }}"
-        _table_name: "{{ _schema }}.{{ _table_filter }}"
+        _schema: "{{ _table.source_schema }}"
+        _table_name: "{{ _schema }}.{{ _table.name }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Database: {{ _db_source }} - Foreign_table: {{ _table_name }}"
       loop: "{{ _patroni_fdw_delete_tables | subelements('tables') }}"
