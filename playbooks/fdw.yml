@@ -16,7 +16,16 @@
     - name: Set PostgreSQL default facts
       ansible.builtin.set_fact:
         _patroni_fdw_list: "{{ _fdw }}"
-        _patroni_cluster_fdw_databases: []
+        _patroni_fdw_delete_tables: []
+        _patroni_fdw_delete_user_mappings: []
+        _patroni_cluster_fdw_targets: []
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _map_format: "nephelaiio.plugins.map_format"
+        _drop_attrs: "nephelaiio.plugins.drop_attributes"
+        _select_attrs: "nephelaiio.plugins.select_attributes"
+        _map_join: "nephelaiio.plugins.map_join"
+        _cons: "nephelaiio.plugins.cons"
+        _inner_product: "nephelaiio.plugins.inner_product"
       vars:
         _fdw: "{{ _patroni_cluster_fdw | dict2items }}"
 
@@ -35,24 +44,26 @@
 
     - name: Set PostgreSQL FDW fact
       ansible.builtin.set_fact:
-        _patroni_cluster_fdw_databases: "{{ _patroni_cluster_fdw_databases + [_map_default] }}"
+        _patroni_cluster_fdw_databases: "{{ _output | flatten }}"
       vars:
-        _remote: "{{ item.0.key }}"
-        _source: "{{ item.1.source }}"
-        _tables: "{{ item.1.tables }}"
-        _table_items: "{{ _tables | dict2items }}"
-        _users: "{{ item.1.users }}"
-        _user_items: "{{ _users | dict2items }}"
-        _state: "{{ item.1.state | default('present') }}"
-        _map_default:
-          remote: "{{ _remote }}"
-          source: "{{ _source }}"
-          users: "{{ _user_items }}"
-          tables: "{{ _table_items }}"
-          state: "{{ _state }}"
-      loop_control:
-        label: "{{ _remote }} - {{ _source }}"
-      loop: "{{ _patroni_fdw_list | subelements('value') }}"
+        _default:
+          state: present
+        _input: "{{ _patroni_fdw_list | sort(attribute='key') }}"
+        _value: "{{ _input | map(attribute='value') }}"
+        _default_value: "{{ [[_default]] | product(_value) | map(_inner_product) | map('map', 'combine') }}"
+        _remote_data: "{{ _input | map(attribute='key') }}"
+        _remote: "{{ _remote_data | map(_to_dict, 'remote') | map(_cons) }}"
+        _source_data: "{{ _default_value | map('map', attribute='source') }}"
+        _source: "{{ _source_data | map('map', _to_dict, 'source') }}"
+        _src_remote: "{{ _remote | zip(_source) | map(_inner_product) | map('map', 'combine') }}"
+        _tables_data: "{{ _default_value | map('map', attribute='tables') | map('map', 'dict2items') }}"
+        _tables: "{{ _tables_data | map('map', _to_dict, 'tables') }}"
+        _remote_tables: "{{ _src_remote | zip(_tables) | map(_inner_product) | map('map', 'combine') }}"
+        _users_data: "{{ _default_value | map('map', attribute='users') | map('map', 'dict2items') }}"
+        _users: "{{ _users_data | map('map', _to_dict, 'users') }}"
+        _users_tables: "{{ _remote_tables | zip(_users) | map(_inner_product) | map('map', 'combine') }}"
+        _states: "{{ _default_value | map('map', _select_attrs, ['state']) }}"
+        _output: "{{ _users_tables | zip(_states) | map(_inner_product) | map('map', 'combine') }}"
 
     - name: Query existing roles
       community.postgresql.postgresql_info:
@@ -104,24 +115,6 @@
         _results: "{{ _postgresql_db_source_query.results | default([]) }}"
         _missing: "{{ _results | rejectattr('is_available') }}"
         _missing_names: "{{ _missing | map(attribute='source') }}"
-
-    - name: Set default FDW user mappings fact
-      ansible.builtin.set_fact:
-        _patroni_fdw_existing: []
-        _patroni_fdw_existing_tables: []
-        _patroni_fdw_existing_servers: []
-        _patroni_fdw_delete_tables: []
-        _patroni_fdw_delete_user_mappings: []
-        _patroni_cluster_fdw_targets: []
-        _patroni_cluster_fdw_create: []
-        _patroni_cluster_fdw_update: []
-        _patroni_cluster_fdw_delete: []
-        _patroni_cluster_fdw_orphan: []
-        _to_dict: "nephelaiio.plugins.to_dict"
-        _map_format: "nephelaiio.plugins.map_format"
-        _drop_attrs: "nephelaiio.plugins.drop_attributes"
-        _select_attrs: "nephelaiio.plugins.select_attributes"
-        _map_join: "nephelaiio.plugins.map_join"
 
     - name: Set PostgreSQL FDW target fact
       ansible.builtin.set_fact:
@@ -177,18 +170,19 @@
 
     - name: Build existing FDW server fact
       ansible.builtin.set_fact:
-        _patroni_fdw_existing_servers: "{{ _patroni_fdw_existing_servers + [_map_server] }}"
+        _patroni_fdw_existing_servers: "{{ _data | flatten }}"
       vars:
-        _source: "{{ item.0.item }}"
-        _foreign_server: "{{ item.1.srvname }}"
-        _srvoptions: "{{ item.1.srvoptions | map('split', '=') | items2dict(key_name=0, value_name=1) }}"
-        _map_server:
-          source: "{{ _source }}"
-          remote: "{{ _srvoptions.dbname }}"
-          foreign_server: "{{ _foreign_server }}"
-      loop_control:
-        label: "Server: {{ _foreign_server }} - Source: {{ _source }}"
-      loop: "{{ _patroni_fdw_existing_list | subelements('query_result') }}"
+        _input: "{{ _patroni_fdw_existing_list | sort(attribute='item') }}"
+        _srvoptions: "{{ _input | map(attribute='query_result') | map('map', attribute='srvoptions') }}"
+        _srvoptpairs: "{{ _srvoptions | map('map', 'map', 'split', '=') }}"
+        _srvdata: "{{ _srvoptpairs | map('map', 'community.general.dict') }}"
+        _dbnamedata: "{{ _srvdata | map('map', attribute='dbname') }}"
+        _dbname: "{{ _dbnamedata | map('map', 'nephelaiio.plugins.to_dict', 'remote') }}"
+        _sources: "{{ _input | map(attribute='item') | map('nephelaiio.plugins.to_dict', 'source') | map('nephelaiio.plugins.cons') }}"
+        _srcopts: "{{ _sources | zip(_dbname) | map('nephelaiio.plugins.inner_product') | map('map', 'combine') }}"
+        _fserverstrs: "{{ _input | map(attribute='query_result') | map('map', attribute='srvname') }}"
+        _fservers: "{{ _fserverstrs | map('map', 'nephelaiio.plugins.to_dict', 'foreign_server') }}"
+        _data: "{{ _srcopts | zip(_fservers) | map('nephelaiio.plugins.pairs') | map('map', 'combine') }}"
 
     - name: Query existing foreign tables
       community.postgresql.postgresql_query:
