@@ -66,8 +66,8 @@
       }
     },
     "git@latest": {
-      "last_modified": "2026-04-23T13:07:47Z",
-      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#git",
+      "last_modified": "2026-05-06T12:40:13Z",
+      "resolved": "github:NixOS/nixpkgs/07800bee2b362f6c73fe17cb1593a260c5e183c6#git",
       "source": "devbox-search",
       "version": "2.53.0",
       "systems": {
@@ -93,12 +93,12 @@
               "default": true
             },
             {
-              "name": "debug",
-              "path": "/nix/store/rc56a3l2wby94gk9gvirpwi9hv9v15gi-git-2.53.0-debug"
-            },
-            {
               "name": "doc",
               "path": "/nix/store/q8j5mwix1g75xyq025d3hmringklm52z-git-2.53.0-doc"
+            },
+            {
+              "name": "debug",
+              "path": "/nix/store/rc56a3l2wby94gk9gvirpwi9hv9v15gi-git-2.53.0-debug"
             }
           ],
           "store_path": "/nix/store/gx9r7g2kyrjhh0zhgxz91f5nbczxh1ac-git-2.53.0"
@@ -138,8 +138,8 @@
       }
     },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
-      "last_modified": "2026-05-07T03:23:16Z",
-      "resolved": "github:NixOS/nixpkgs/68a8af93ff4297686cb68880845e61e5e2e41d92?lastModified=1778124196&narHash=sha256-pYEytCNic%2FczazbV9r3tbQ6BZzqRBg%2F41x2dIC5ymOo%3D"
+      "last_modified": "2026-05-14T21:33:07Z",
+      "resolved": "github:NixOS/nixpkgs/8a1b0127302ea51e05bf4ea5a291743fac442406?lastModified=1778794387&narHash=sha256-BL04pOS9453Awkeb9f90XBJXBSkWxN%2BvB7HIgnL0iMM%3D"
     },
     "gnumake@latest": {
       "last_modified": "2026-05-03T16:35:46Z",
@@ -268,12 +268,12 @@
               "default": true
             },
             {
-              "name": "doc",
-              "path": "/nix/store/00dhhpzj70qkimjib74nx5sifqq99akr-gnupg-2.4.9-doc"
-            },
-            {
               "name": "info",
               "path": "/nix/store/h8cmjp2wrvs7wvw8496vycz89z4qrw6m-gnupg-2.4.9-info"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/00dhhpzj70qkimjib74nx5sifqq99akr-gnupg-2.4.9-doc"
             }
           ],
           "store_path": "/nix/store/ql74jiic57cr7c81b92323cz9bjxrdqr-gnupg-2.4.9"
@@ -434,8 +434,8 @@
       }
     },
     "libisoburn@latest": {
-      "last_modified": "2026-05-03T16:35:46Z",
-      "resolved": "github:NixOS/nixpkgs/73c703c22422b8951895a960959dbbaca7296492#libisoburn",
+      "last_modified": "2026-05-04T18:13:23Z",
+      "resolved": "github:NixOS/nixpkgs/afc5551119aae6eab73a95c1960891cfe63204f6#libisoburn",
       "source": "devbox-search",
       "version": "1.5.6",
       "systems": {
@@ -533,16 +533,16 @@
               "default": true
             },
             {
+              "name": "dev",
+              "path": "/nix/store/ly2s21rb105rmkiwqi047mvcbk8d3h7c-libisoburn-1.5.6-dev"
+            },
+            {
               "name": "info",
               "path": "/nix/store/cklvmx7zwzg035mld15vvhm0fr8jcgh3-libisoburn-1.5.6-info"
             },
             {
               "name": "lib",
               "path": "/nix/store/6552dmv2kahsasrv79sxfyn2b79ilbk7-libisoburn-1.5.6-lib"
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/ly2s21rb105rmkiwqi047mvcbk8d3h7c-libisoburn-1.5.6-dev"
             }
           ],
           "store_path": "/nix/store/wk0bb16x0zg2k5h1l3w16p4apsswyvl9-libisoburn-1.5.6"
@@ -550,8 +550,8 @@
       }
     },
     "libvirt@latest": {
-      "last_modified": "2026-05-01T13:14:57Z",
-      "resolved": "github:NixOS/nixpkgs/c6d65881c5624c9cae5ea6cedef24699b0c0a4c0#libvirt",
+      "last_modified": "2026-05-07T03:23:16Z",
+      "resolved": "github:NixOS/nixpkgs/68a8af93ff4297686cb68880845e61e5e2e41d92#libvirt",
       "source": "devbox-search",
       "version": "12.2.0",
       "systems": {
@@ -569,11 +569,11 @@
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/wzav34px2npzdcvjm9sk3xvcycr9glay-libvirt-12.2.0",
+              "path": "/nix/store/rhvcf8h11mvx9sc7yz5a7h86ifa0psdl-libvirt-12.2.0",
               "default": true
             }
           ],
-          "store_path": "/nix/store/wzav34px2npzdcvjm9sk3xvcycr9glay-libvirt-12.2.0"
+          "store_path": "/nix/store/rhvcf8h11mvx9sc7yz5a7h86ifa0psdl-libvirt-12.2.0"
         },
         "x86_64-darwin": {
           "outputs": [
@@ -589,11 +589,11 @@
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/l2z2acqvs6nw53s1x41ppamgmknp6qz1-libvirt-12.2.0",
+              "path": "/nix/store/z6bgbch9jkicai9wn47ik953ksz1300b-libvirt-12.2.0",
               "default": true
             }
           ],
-          "store_path": "/nix/store/l2z2acqvs6nw53s1x41ppamgmknp6qz1-libvirt-12.2.0"
+          "store_path": "/nix/store/z6bgbch9jkicai9wn47ik953ksz1300b-libvirt-12.2.0"
         }
       }
     },
@@ -660,56 +660,56 @@
       }
     },
     "uv@latest": {
-      "last_modified": "2026-04-28T17:03:49Z",
-      "resolved": "github:NixOS/nixpkgs/e75f25705c2934955ee5075e62530d74aca973c6#uv",
+      "last_modified": "2026-05-06T02:58:03Z",
+      "resolved": "github:NixOS/nixpkgs/ed67bc86e84e51d4a88e73c7fd36006dc876476f#uv",
       "source": "devbox-search",
-      "version": "0.11.8",
+      "version": "0.11.10",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/9yc0dyp8ymcgmqq0kgilif31xcyr0jya-uv-0.11.8",
+              "path": "/nix/store/qwfvprgk5wfayh4ijc543hnfaq75d3vw-uv-0.11.10",
               "default": true
             }
           ],
-          "store_path": "/nix/store/9yc0dyp8ymcgmqq0kgilif31xcyr0jya-uv-0.11.8"
+          "store_path": "/nix/store/qwfvprgk5wfayh4ijc543hnfaq75d3vw-uv-0.11.10"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/1413srfhakqmzxc9f3m3vwq90fmc1l5w-uv-0.11.8",
+              "path": "/nix/store/j3azs6q2k0x47lmb4j0145ks6mmp6v3p-uv-0.11.10",
               "default": true
             }
           ],
-          "store_path": "/nix/store/1413srfhakqmzxc9f3m3vwq90fmc1l5w-uv-0.11.8"
+          "store_path": "/nix/store/j3azs6q2k0x47lmb4j0145ks6mmp6v3p-uv-0.11.10"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/vc2x50g0316b91kn0y8njwdfchvnmdkg-uv-0.11.8",
+              "path": "/nix/store/8nlc9vg73sd3552filxslpmw1jrq59c6-uv-0.11.10",
               "default": true
             }
           ],
-          "store_path": "/nix/store/vc2x50g0316b91kn0y8njwdfchvnmdkg-uv-0.11.8"
+          "store_path": "/nix/store/8nlc9vg73sd3552filxslpmw1jrq59c6-uv-0.11.10"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/9xinbvah2sr4k5g05g7w48q2klf2va5f-uv-0.11.8",
+              "path": "/nix/store/k6k1r5fbi9kgq0vdliwx0vd9kzg8qas8-uv-0.11.10",
               "default": true
             }
           ],
-          "store_path": "/nix/store/9xinbvah2sr4k5g05g7w48q2klf2va5f-uv-0.11.8"
+          "store_path": "/nix/store/k6k1r5fbi9kgq0vdliwx0vd9kzg8qas8-uv-0.11.10"
         }
       }
     },
     "xfsprogs@latest": {
-      "last_modified": "2026-05-03T08:31:49Z",
-      "resolved": "github:NixOS/nixpkgs/90c100cb48d61a0316b9479bb03f1be36d34b92a#xfsprogs",
+      "last_modified": "2026-05-06T12:40:13Z",
+      "resolved": "github:NixOS/nixpkgs/07800bee2b362f6c73fe17cb1593a260c5e183c6#xfsprogs",
       "source": "devbox-search",
       "version": "6.19.0",
       "systems": {
@@ -726,16 +726,16 @@
               "default": true
             },
             {
+              "name": "out",
+              "path": "/nix/store/vd1z8gmmdr1scnnrlf43dv6mf7s4zyf5-xfsprogs-6.19.0"
+            },
+            {
               "name": "dev",
               "path": "/nix/store/d0gfxf7jkfyh8jrwh9j45rp1h8yxxcj0-xfsprogs-6.19.0-dev"
             },
             {
               "name": "doc",
               "path": "/nix/store/0i5h7sak10qwyink803adj8h0z2fw930-xfsprogs-6.19.0-doc"
-            },
-            {
-              "name": "out",
-              "path": "/nix/store/vd1z8gmmdr1scnnrlf43dv6mf7s4zyf5-xfsprogs-6.19.0"
             }
           ],
           "store_path": "/nix/store/664ldhrjq1a3mhhwq18x9q4mcc5cph2a-xfsprogs-6.19.0-bin"

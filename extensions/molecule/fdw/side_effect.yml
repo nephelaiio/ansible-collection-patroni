@@ -89,8 +89,8 @@
               tables:
                 molecule_table1:
                   columns:
-                    - '"Username" character varying(50) NOT NULL'
-                    - '"CountryId" integer NOT NULL'
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
             - source: "{{ patroni_test_database }}"
               users:
                 test:
@@ -108,8 +108,8 @@
               tables:
                 test_table1:
                   columns:
-                    - '"Username" character varying(50) NOT NULL'
-                    - '"CountryId" integer NOT NULL'
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
           remote_BlaDB:
             - source: "{{ patroni_bladb_database }}"
               remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
@@ -121,8 +121,8 @@
               tables:
                 BlaDB_table1:
                   columns:
-                    - '"Username" character varying(50) NOT NULL'
-                    - '"CountryId" integer NOT NULL'
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
                   source_schema: bladb_source_schema
                   remote_schema: bladb_remote_schema
 
@@ -150,8 +150,8 @@
               tables:
                 molecule_table1:
                   columns:
-                    - '"Username" character varying(50) NOT NULL'
-                    - '"CountryId" integer NOT NULL'
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
             - source: "{{ patroni_test_database }}"
               users:
                 test:
@@ -172,8 +172,8 @@
               tables:
                 BlaDB_table1:
                   columns:
-                    - '"Username" character varying(50) NOT NULL'
-                    - '"CountryId" integer NOT NULL'
+                    - Username character varying(50) NOT NULL
+                    - CountryId integer NOT NULL
                   source_schema: bladb_source_schema
                   remote_schema: bladb_remote_schema
 
