@@ -26,6 +26,7 @@
         _map_join: "nephelaiio.plugins.map_join"
         _cons: "nephelaiio.plugins.cons"
         _inner_product: "nephelaiio.plugins.inner_product"
+        _pairs: "nephelaiio.plugins.pairs"
       vars:
         _fdw: "{{ _patroni_cluster_fdw | dict2items }}"
 
@@ -57,13 +58,13 @@
         _source: "{{ _source_data | map('map', _to_dict, 'source') }}"
         _src_remote: "{{ _remote | zip(_source) | map(_inner_product) | map('map', 'combine') }}"
         _tables_data: "{{ _default_value | map('map', attribute='tables') | map('map', 'dict2items') }}"
-        _tables: "{{ _tables_data | map('map', _to_dict, 'tables') }}"
-        _remote_tables: "{{ _src_remote | zip(_tables) | map(_inner_product) | map('map', 'combine') }}"
+        _tables: "{{ _tables_data | map('map', _to_dict, 'tables') | map(_cons) | flatten(1) }}"
+        _remote_tables: "{{ _src_remote | zip(_tables) | map(_pairs) | map('map', 'combine') }}"
         _users_data: "{{ _default_value | map('map', attribute='users') | map('map', 'dict2items') }}"
-        _users: "{{ _users_data | map('map', _to_dict, 'users') }}"
-        _users_tables: "{{ _remote_tables | zip(_users) | map(_inner_product) | map('map', 'combine') }}"
+        _users: "{{ _users_data | map('map', _to_dict, 'users') | map(_cons) | flatten(1) }}"
+        _users_tables: "{{ _remote_tables | zip(_users) | map(_pairs) | map('map', 'combine') }}"
         _states: "{{ _default_value | map('map', _select_attrs, ['state']) }}"
-        _output: "{{ _users_tables | zip(_states) | map(_inner_product) | map('map', 'combine') }}"
+        _output: "{{ _users_tables | zip(_states) | map(_pairs) | map('map', 'combine') }}"
 
     - name: Query existing roles
       community.postgresql.postgresql_info:
@@ -177,12 +178,12 @@
         _srvoptpairs: "{{ _srvoptions | map('map', 'map', 'split', '=') }}"
         _srvdata: "{{ _srvoptpairs | map('map', 'community.general.dict') }}"
         _dbnamedata: "{{ _srvdata | map('map', attribute='dbname') }}"
-        _dbname: "{{ _dbnamedata | map('map', 'nephelaiio.plugins.to_dict', 'remote') }}"
-        _sources: "{{ _input | map(attribute='item') | map('nephelaiio.plugins.to_dict', 'source') | map('nephelaiio.plugins.cons') }}"
-        _srcopts: "{{ _sources | zip(_dbname) | map('nephelaiio.plugins.inner_product') | map('map', 'combine') }}"
+        _dbname: "{{ _dbnamedata | map('map',_to_dict, 'remote') }}"
+        _sources: "{{ _input | map(attribute='item') | map(_to_dict, 'source') | map(_cons) }}"
+        _srcopts: "{{ _sources | zip(_dbname) | map(_inner_product) | map('map', 'combine') }}"
         _fserverstrs: "{{ _input | map(attribute='query_result') | map('map', attribute='srvname') }}"
-        _fservers: "{{ _fserverstrs | map('map', 'nephelaiio.plugins.to_dict', 'foreign_server') }}"
-        _data: "{{ _srcopts | zip(_fservers) | map('nephelaiio.plugins.pairs') | map('map', 'combine') }}"
+        _fservers: "{{ _fserverstrs | map('map', _to_dict, 'foreign_server') }}"
+        _data: "{{ _srcopts | zip(_fservers) | map(_pairs) | map('map', 'combine') }}"
 
     - name: Query existing foreign tables
       community.postgresql.postgresql_query:
