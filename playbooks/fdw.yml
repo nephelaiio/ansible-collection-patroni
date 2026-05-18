@@ -11,33 +11,59 @@
   tasks:
     - name: End play when there are no FDWs to manage
       ansible.builtin.meta: end_play
-      when: _patroni_cluster_fdw | length == 0
+      when: (_patroni_cluster_fdw | default({})) == {}
+
+    - name: Set PostgreSQL default facts
+      ansible.builtin.set_fact:
+        _patroni_fdw_list: "{{ _fdw }}"
+        _patroni_fdw_delete_tables: []
+        _patroni_fdw_delete_user_mappings: []
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _map_format: "nephelaiio.plugins.map_format"
+        _drop_attrs: "nephelaiio.plugins.drop_attributes"
+        _select_attrs: "nephelaiio.plugins.select_attributes"
+        _map_join: "nephelaiio.plugins.map_join"
+        _cons: "nephelaiio.plugins.cons"
+        _inner_product: "nephelaiio.plugins.inner_product"
+        _pairs: "nephelaiio.plugins.pairs"
+      vars:
+        _fdw: "{{ _patroni_cluster_fdw | dict2items }}"
 
     - name: Verify postgresql foreign data wrapper parameters
       ansible.builtin.assert:
         that:
           - _source | length == 0
-          - _remote | length == 0
           - _users | length == 0
           - _tables | length == 0
       vars:
-        _databases: "{{ _patroni_cluster_fdw }}"
-        _source: "{{ _databases | rejectattr('source', 'defined') }}"
-        _remote: "{{ _databases | rejectattr('remote', 'defined') }}"
-        _users: "{{ _databases | rejectattr('users', 'defined') }}"
-        _tables: "{{ _databases | rejectattr('tables', 'defined') }}"
+        _databases: "{{ _patroni_fdw_list }}"
+        _values: "{{ _databases | map(attribute='value') | flatten }}"
+        _source: "{{ _values | rejectattr('source', 'defined') }}"
+        _users: "{{ _values | rejectattr('users', 'defined') }}"
+        _tables: "{{ _values | rejectattr('tables', 'defined') }}"
 
     - name: Set PostgreSQL FDW fact
       ansible.builtin.set_fact:
-        _patroni_cluster_fdw_databases: "{{ _users_overwritten }}"
+        _patroni_cluster_fdw_databases: "{{ _output | flatten }}"
       vars:
-        _fdw: "{{ _patroni_cluster_fdw | sort(attribute='remote') }}"
-        _tables: "{{ _fdw | map(attribute='tables') | map('dict2items') }}"
-        _tables_dict: "{{ _tables | map('nephelaiio.plugins.to_dict', 'tables') }}"
-        _tables_overwritten: "{{ _fdw | zip(_tables_dict) | map('combine') }}"
-        _users: "{{ _tables_overwritten | map(attribute='users') | map('dict2items') }}"
-        _users_dict: "{{ _users | map('nephelaiio.plugins.to_dict', 'users') }}"
-        _users_overwritten: "{{ _tables_overwritten | zip(_users_dict) | map('combine') }}"
+        _default:
+          state: present
+        _input: "{{ _patroni_fdw_list | sort(attribute='key') }}"
+        _value: "{{ _input | map(attribute='value') }}"
+        _default_value: "{{ [[_default]] | product(_value) | map(_inner_product) | map('map', 'combine') }}"
+        _remote_data: "{{ _input | map(attribute='key') }}"
+        _remote: "{{ _remote_data | map(_to_dict, 'remote') | map(_cons) }}"
+        _source_data: "{{ _default_value | map('map', attribute='source') }}"
+        _source: "{{ _source_data | map('map', _to_dict, 'source') }}"
+        _src_remote: "{{ _remote | zip(_source) | map(_inner_product) | map('map', 'combine') }}"
+        _tables_data: "{{ _default_value | map('map', attribute='tables') | map('map', 'dict2items') }}"
+        _tables: "{{ _tables_data | map('map', _to_dict, 'tables') | map(_cons) | flatten(1) }}"
+        _remote_tables: "{{ _src_remote | zip(_tables) | map(_pairs) | map('map', 'combine') }}"
+        _users_data: "{{ _default_value | map('map', attribute='users') | map('map', 'dict2items') }}"
+        _users: "{{ _users_data | map('map', _to_dict, 'users') | map(_cons) | flatten(1) }}"
+        _users_tables: "{{ _remote_tables | zip(_users) | map(_pairs) | map('map', 'combine') }}"
+        _states: "{{ _default_value | map('map', _select_attrs, ['state']) }}"
+        _output: "{{ _users_tables | zip(_states) | map(_pairs) | map('map', 'combine') }}"
 
     - name: Query existing roles
       community.postgresql.postgresql_info:
@@ -63,14 +89,6 @@
         _user_names: "{{ _users | map(attribute='key') | flatten }}"
         _existing_users: "{{ _patroni_fdw_existing_roles }}"
         _missing_roles: "{{ _user_names | reject('in', _existing_users) }}"
-
-    - name: Verify postgresql foreign data wrapper remotes
-      ansible.builtin.assert:
-        that: (_databases | length) == (_remotes | length)
-        fail_msg: "Remote database should be unique"
-      vars:
-        _databases: "{{ _patroni_cluster_fdw_databases }}"
-        _remotes: "{{ _databases | map(attribute='remote') | flatten | unique }}"
 
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -98,182 +116,242 @@
         _missing: "{{ _results | rejectattr('is_available') }}"
         _missing_names: "{{ _missing | map(attribute='source') }}"
 
-    - name: Set default FDW user mappings fact
-      ansible.builtin.set_fact:
-        _patroni_fdw_existing_user_mappings: []
-        _patroni_fdw_existing_tables: []
-        _patroni_fdw_delete_tables: []
-        _patroni_fdw_delete_user_mappings: []
-        _patroni_cluster_fdw_targets: []
-        _to_dict: "nephelaiio.plugins.to_dict"
-        _map_format: "nephelaiio.plugins.map_format"
-        _drop_attrs: "nephelaiio.plugins.drop_attributes"
-        _map_join: "nephelaiio.plugins.map_join"
-
     - name: Set PostgreSQL FDW target fact
       ansible.builtin.set_fact:
-        _patroni_cluster_fdw_targets: "{{ _patroni_cluster_fdw_targets + [item | combine(_dict_overwritten)] }}"
+        _patroni_cluster_fdw_targets: "{{ _users | flatten }}"
       vars:
+        _fdw: "{{ _patroni_cluster_fdw_databases | sort(attribute='source') }}"
+        _fdw_cons: "{{ _fdw | map(_cons) }}"
         _map_tables_default:
           source_schema: public
           remote_schema: public
         _map_users_default:
           password_required: true
-        _users: "{{ item.users | sort(attribute='key') }}"
-        _value_users: "{{ _users | map(attribute='value') }}"
-        _value_users_overwritten: "{{ [_map_users_default] | product(_value_users) | map('combine') }}"
-        _value_users_dict: "{{ _value_users_overwritten | map(_to_dict, 'value') }}"
-        _tables: "{{ item.tables | sort(attribute='key') }}"
-        _value_tables: "{{ _tables | map(attribute='value') }}"
-        _value_tables_overwritten: "{{ [_map_tables_default] | product(_value_tables) | map('combine') }}"
-        _value_tables_dict: "{{ _value_tables_overwritten | map(_to_dict, 'value') }}"
-        _dict_overwritten:
-          tables: "{{ _tables | zip(_value_tables_dict) | map('combine') }}"
-          users: "{{ _users | zip(_value_users_dict) | map('combine') }}"
-      loop_control:
-        label: "{{ item.source }}"
-      loop: "{{ _patroni_cluster_fdw_databases }}"
+        _users_data: "{{ _fdw | map(attribute='users') | map('sort', attribute='key') }}"
+        _user_values: "{{ _users_data | map('map', attribute='value') }}"
+        _value_users_overwritten: "{{ [[_map_users_default]] | product(_user_values) | map(_inner_product) | map('map', 'combine') }}"
+        _value_users_dict: "{{ _value_users_overwritten | map('map', _to_dict, 'value') }}"
+        _users_overwritten: "{{ _users_data | zip(_value_users_dict) | map(_pairs) | map('map', 'combine') | map(_cons) }}"
+        _users_dict: "{{ _users_overwritten | map('map', _to_dict, 'users') }}"
+        _tables_data: "{{ _fdw | map(attribute='tables') | map('sort', attribute='key') }}"
+        _value_tables: "{{ _tables_data | map('map', attribute='value') }}"
+        _value_tables_overwritten: "{{ [[_map_tables_default]] | product(_value_tables) | map(_inner_product) | map('map', 'combine') }}"
+        _value_tables_dict: "{{ _value_tables_overwritten | map('map', _to_dict, 'value') }}"
+        _tables_overwritten: "{{ _tables_data | zip(_value_tables_dict) | map(_pairs) | map('map', 'combine') | map(_cons) }}"
+        _tables_dict: "{{ _tables_overwritten | map('map', _to_dict, 'tables') }}"
+        _tables: "{{ _fdw_cons | zip(_tables_dict) | map(_pairs) | map('map', 'combine') }}"
+        _users: "{{ _tables | zip(_users_dict) | map(_pairs) | map('map', 'combine') }}"
+
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT datname FROM pg_database WHERE datallowconn;
+        login_db: "postgres"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_databases_results
+      no_log: "{{ _patroni_nolog }}"
 
     - name: Query existing FDW servers
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT * FROM pg_foreign_server;
-        login_db: "{{ _db_source }}"
+        login_db: "{{ item }}"
       vars:
-        _db_source: "{{ item.source }}"
-      loop_control:
-        label: "{{ _db_source }}"
-      loop: "{{ _patroni_cluster_fdw_targets }}"
+        _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
+        _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
+      loop: "{{ _db_names }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_server_results
       no_log: "{{ _patroni_nolog }}"
+
+    - name: Set existing FDW server fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_list: "{{ _query }}"
+      vars:
+        _query: "{{ _patroni_fdw_server_results.results | selectattr('query_result') }}"
+
+    - name: Build existing FDW server fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_servers: "{{ _data | flatten }}"
+      vars:
+        _input: "{{ _patroni_fdw_existing_list | sort(attribute='item') }}"
+        _srvoptions: "{{ _input | map(attribute='query_result') | map('map', attribute='srvoptions') }}"
+        _srvoptpairs: "{{ _srvoptions | map('map', 'map', 'split', '=') }}"
+        _srvdata: "{{ _srvoptpairs | map('map', 'community.general.dict') }}"
+        _dbnamedata: "{{ _srvdata | map('map', attribute='dbname') }}"
+        _dbname: "{{ _dbnamedata | map('map',_to_dict, 'remote') }}"
+        _sources: "{{ _input | map(attribute='item') | map(_to_dict, 'source') | map(_cons) }}"
+        _srcopts: "{{ _sources | zip(_dbname) | map(_inner_product) | map('map', 'combine') }}"
+        _fserverstrs: "{{ _input | map(attribute='query_result') | map('map', attribute='srvname') }}"
+        _fservers: "{{ _fserverstrs | map('map', _to_dict, 'foreign_server') }}"
+        _data: "{{ _srcopts | zip(_fservers) | map(_pairs) | map('map', 'combine') }}"
+
+    - name: Query existing foreign tables
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT * FROM Information_schema.foreign_tables WHERE foreign_server_name=lower('{{ _foreign_server }}');
+        login_db: "{{ _db }}"
+      vars:
+        _foreign_server: "{{ item.foreign_server }}"
+        _db: "{{ item.source }}"
+      loop_control:
+        label: "Server: {{ item.foreign_server }} - Source: {{ _db }}"
+      loop: "{{ _patroni_fdw_existing_servers }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_fdw_table_results
+      no_log: "{{ _patroni_nolog }}"
+
+    - name: Set existing FDW server fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_list: "{{ _query }}"
+      vars:
+        _query: "{{ _patroni_fdw_table_results.results | default([]) }}"
+
+    - name: Build existing FDW tables fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing_tables: "{{ _output }}"
+      vars:
+        _input: "{{ _patroni_fdw_existing_list | sort(attribute='item.foreign_server') }}"
+        _source_names: "{{ _input | map(attribute='item.source') }}"
+        _sources_dict: "{{ _source_names | map(_to_dict, 'source') }}"
+        _remote_names: "{{ _input | map(attribute='item.remote') }}"
+        _remotes_dict: "{{ _remote_names | map(_to_dict, 'remote') }}"
+        _foreign_server_names: "{{ _input | map(attribute='item.foreign_server') }}"
+        _foreign_server_dict: "{{ _foreign_server_names | map(_to_dict, 'foreign_server') }}"
+        _tables: "{{ _input | map(attribute='query_result') }}"
+        _tables_dict: "{{ _tables | map(_to_dict, 'tables') }}"
+        _output: "{{ _sources_dict | zip(_remotes_dict, _foreign_server_dict, _tables_dict) | map('combine') }}"
 
     - name: Query existing user mappings
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT * FROM Information_schema.user_mapping_options;
-        login_db: "{{ _db_source }}"
+        login_db: "{{ _db }}"
       vars:
-        _db_source: "{{ item.source }}"
+        _db: "{{ item.source }}"
       loop_control:
-        label: "{{ _db_source }}"
-      loop: "{{ _patroni_cluster_fdw_targets }}"
+        label: "Server: {{ item.foreign_server }} - Source: {{ _db }}"
+      loop: "{{ _patroni_fdw_existing_tables }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_user_results
       no_log: "{{ _patroni_nolog }}"
 
-    - name: Set existing FDW user mappings fact
+    - name: Set existing FDW server fact
       ansible.builtin.set_fact:
-        _patroni_fdw_existing_user_mappings: "{{ _patroni_fdw_existing_user_mappings + _users }}"
+        _patroni_fdw_existing_list: "{{ _query }}"
       vars:
-        _db: "{{ item.item.source }}"
-        _query: "{{ item.query_result | default([]) }}"
-        _foreign_catalog: "{{ _query | selectattr('foreign_server_catalog', 'equalto', _db) }}"
-        _users: "{{ _foreign_catalog | rejectattr('option_name', 'equalto', 'password') }}"
-      loop_control:
-        label: "{{ _db }}"
-      loop: "{{ _patroni_fdw_user_results.results | default([]) }}"
+        _query: "{{ _patroni_fdw_user_results.results | default([]) }}"
+
+    - name: Build existing FDW user mappings fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_existing: "{{ _output }}"
+      vars:
+        _input: "{{ _patroni_fdw_existing_list | sort(attribute='item.foreign_server') }}"
+        _source_names: "{{ _input | map(attribute='item.source') }}"
+        _sources_dict: "{{ _source_names | map(_to_dict, 'source') }}"
+        _remote_names: "{{ _input | map(attribute='item.remote') }}"
+        _remotes_dict: "{{ _remote_names | map(_to_dict, 'remote') }}"
+        _foreign_server_names: "{{ _input | map(attribute='item.foreign_server') }}"
+        _foreign_server_dict: "{{ _foreign_server_names | map(_to_dict, 'foreign_server') }}"
+        _tables: "{{ _input | map(attribute='item.tables') }}"
+        _tables_dict: "{{ _tables | map(_to_dict, 'tables') }}"
+        _users: "{{ _input | map(attribute='query_result') | map('selectattr', 'option_name', 'equalto', 'password_required') }}"
+        _users_dict: "{{ _users | map(_to_dict, 'users') }}"
+        _output: "{{ _sources_dict | zip(_remotes_dict, _foreign_server_dict, _tables_dict, _users_dict) | map('combine') }}"
+
+    - name: Set PostgreSQL FDW target fact
+      ansible.builtin.set_fact:
+        _patroni_fdw_targets: "{{ _cluster_fdw_overwritten }}"
+      vars:
+        _map_fdw_defaults:
+          extension: postgres_fdw
+        _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
+        _app_name_suffix: "{{ _patroni_cluster_fdw_app_name_suffix }}"
+        _cluster_fdw: "{{ _patroni_cluster_fdw_targets }}"
+        _fdw_defaults: "{{ [_map_fdw_defaults] | product(_cluster_fdw) | map('combine') | sort(attribute='source') }}"
+        _servers: "{{ _fdw_defaults | map(_map_join, ['source', 'remote'], '_') }}"
+        _sources_format: "{{ _servers | map(_map_format, '%s_' + _server_suffix) }}"
+        _sources_regex: "{{ _sources_format | map('regex_replace', '-', '_') | map('lower') }}"
+        _foreign_servers_dict: "{{ _sources_regex | map(_to_dict, 'foreign_server') }}"
+        _foreign_servers: "{{ _fdw_defaults | zip(_foreign_servers_dict) | map('combine') }}"
+        _app_names: "{{ _foreign_servers | map(attribute='source') }}"
+        _app_names_format: "{{ _app_names | map(_map_format, _app_name_suffix + '_%s') }}"
+        _app_names_dict: "{{ _app_names_format | map(_to_dict, 'application_name') }}"
+        _cluster_fdw_overwritten: "{{ _foreign_servers | zip(_app_names_dict) | map('combine') }}"
 
     - name: Set PostgreSQL FDW facts
       ansible.builtin.set_fact:
         _patroni_cluster_fdw_update: "{{ _update_fdw }}"
         _patroni_cluster_fdw_create: "{{ _create_fdw }}"
         _patroni_cluster_fdw_delete: "{{ _delete_fdw }}"
+        _patroni_cluster_fdw_orphan: "{{ _orphan_fdw }}"
       vars:
-        _map_fdw_defaults:
-          state: present
-          extension: postgres_fdw
-        _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
-        _app_name_suffix: "{{ _patroni_cluster_fdw_app_name_suffix }}"
-        _cluster_fdw: "{{ _patroni_cluster_fdw_targets }}"
-        _fdw_defaults: "{{ [_map_fdw_defaults] | product(_cluster_fdw) | map('combine') | sort(attribute='remote') }}"
-        _remote_dbs: "{{ _fdw_defaults | map(attribute='remote') }}"
-        _remote_format: "{{ _remote_dbs | map(_map_format, '%s_' + _server_suffix) }}"
-        _remote_regex: "{{ _remote_format | map('regex_replace', '-', '_') | map('lower') }}"
-        _foreign_servers_dict: "{{ _remote_regex | map(_to_dict, 'foreign_server') }}"
-        _foreign_servers: "{{ _fdw_defaults | zip(_foreign_servers_dict) | map('combine') }}"
-        _app_names: "{{ _foreign_servers | map(attribute='source') }}"
-        _app_names_format: "{{ _app_names | map(_map_format, _app_name_suffix + '_%s') }}"
-        _app_names_dict: "{{ _app_names_format | map(_to_dict, 'application_name') }}"
-        _cluster_fdw_overwritten: "{{ _foreign_servers | zip(_app_names_dict) | map('combine') }}"
-        _targets: "{{ _cluster_fdw_overwritten | selectattr('state', 'equalto', 'present') }}"
-        _query_server: "{{ _patroni_fdw_server_results.results | default([]) }}"
-        _query_server_results: "{{ _query_server | selectattr('query_result', 'defined') | map(attribute='query_result') | flatten }}"
-        _srvnames: "{{ _query_server_results | selectattr('srvname', 'defined') | map(attribute='srvname') | flatten }}"
-        _update_fdw: "{{ _targets | selectattr('foreign_server', 'in', _srvnames) }}"
-        _create_fdw: "{{ _targets | difference(_update_fdw) }}"
-        _delete_fdw: "{{ _cluster_fdw_overwritten | difference(_targets) }}"
-
-    - name: Query existing foreign tables
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT * FROM Information_schema.foreign_table_options;
-        login_db: "{{ _db_source }}"
-      vars:
-        _db_source: "{{ item.source }}"
-        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
-      loop_control:
-        label: "{{ _db_source }}"
-      loop: "{{ _fdw }}"
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_fdw_table_results
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Set existing FDW tables fact
-      ansible.builtin.set_fact:
-        _patroni_fdw_existing_tables: "{{ _patroni_fdw_existing_tables + [_map_tables] }}"
-      vars:
-        _query: "{{ item.query_result | default([]) }}"
-        _map_tables:
-          source: "{{ item.item.source }}"
-          remote: "{{ item.item.remote }}"
-          foreign_server: "{{ item.item.foreign_server }}"
-          tables: "{{ _query }}"
-      loop_control:
-        label: "{{ item.item.remote }}"
-      loop: "{{ _patroni_fdw_table_results.results | default([]) }}"
-      when: _query | length > 0
+        _existing: "{{ _patroni_fdw_existing }}"
+        _targets: "{{ _patroni_fdw_targets }}"
+        _present: "{{ _targets | selectattr('state', 'equalto', 'present') }}"
+        _absent: "{{ _targets | difference(_present) }}"
+        _target_names: "{{ _targets | map(attribute='foreign_server') }}"
+        _existing_names: "{{ _existing | map(attribute='foreign_server') }}"
+        _update_fdw: "{{ _present | selectattr('foreign_server', 'in', _existing_names) }}"
+        _create_fdw: "{{ _present | difference(_update_fdw) }}"
+        _orphan_fdw: "{{ _existing | rejectattr('foreign_server', 'in', _target_names) }}"
+        _delete_fdw: "{{ _absent | selectattr('foreign_server', 'in', _existing_names) }}"
 
     - name: Set FDW delete tables fact
       ansible.builtin.set_fact:
         _patroni_fdw_delete_tables: "{{ _patroni_fdw_delete_tables + [_map_tables] }}"
       vars:
         _foreign_server: "{{ item.foreign_server }}"
-        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_delete }}"
-        _users: "{{ _patroni_fdw_existing_user_mappings }}"
-        _server_catalog: "{{ _users | selectattr('foreign_server_name', 'equalto', _foreign_server) }}"
-        _target_users: "{{ _server_catalog | map(attribute='authorization_identifier') }}"
+        _fdw: "{{ _patroni_cluster_fdw_update }}"
+        _target_users: "{{ item.users | map(attribute='authorization_identifier') | unique }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
-        _target_server: "{{ _fdw | selectattr('source', 'equalto', item.source) }}"
+        _target_server: "{{ _fdw | selectattr('foreign_server', 'equalto', _foreign_server) }}"
         _target_tables: "{{ _target_server | map(attribute='tables') | flatten | map(attribute='key') | flatten }}"
         _target_tables_format: "{{ _target_tables | map(_map_format, '%s_' + _suffix) }}"
-        _filter_tables: "{{ item.tables | rejectattr('foreign_table_name', 'in', _target_tables_format) }}"
-        _delete_tables: "{{ _filter_tables | selectattr('option_name', 'equalto', 'table_name') }}"
+        _orphan_tables_filter: "{{ item.tables | rejectattr('foreign_table_name', 'in', _target_tables_format) }}"
+        _orphan_table_names: "{{ _orphan_tables_filter | map(attribute='foreign_table_name') }}"
+        _orphan_table_names_dict: "{{ _orphan_table_names | map(_to_dict, 'name') }}"
+        _orphan_table_schemas: "{{ _orphan_tables_filter | map(attribute='foreign_table_schema') }}"
+        _orphan_table_schemas_dict: "{{ _orphan_table_schemas | map(_to_dict, 'source_schema') }}"
+        _orphan_tables: "{{ _orphan_table_names_dict | zip(_orphan_table_schemas_dict) | map('combine') }}"
+        _absent_tables_filter: "{{ _target_server | selectattr('state', 'equalto', 'absent') }}"
+        _absent_tables_flatten: "{{ _absent_tables_filter | map(attribute='tables') | flatten }}"
+        _absent_table_names: "{{ _absent_tables_flatten | map(attribute='key') }}"
+        _absent_table_format: "{{ _absent_table_names | map(_map_format, '%s_' + _suffix) }}"
+        _absent_table_names_dict: "{{ _absent_table_format | map(_to_dict, 'name') }}"
+        _absent_table_schemas: "{{ _absent_tables_flatten | map(attribute='value.source_schema') }}"
+        _absent_table_schemas_dict: "{{ _absent_table_schemas | map(_to_dict, 'source_schema') }}"
+        _absent_tables: "{{ _absent_table_names_dict | zip(_absent_table_schemas_dict) | map('combine') }}"
+        _tables: "{{ _orphan_tables + _absent_tables }}"
+        _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
         _map_tables:
           source: "{{ item.source }}"
           remote: "{{ item.remote }}"
           foreign_server: "{{ _foreign_server }}"
-          tables: "{{ _delete_tables }}"
-          users: "{{ _target_users | map(_to_dict, 'key') }}"
+          tables: "{{ _tables }}"
+          users: "{{ _target_users }}"
       loop_control:
-        label: "{{ item.source }}"
-      loop: "{{ _patroni_fdw_existing_tables | default([]) }}"
-      when: _delete_tables | length > 0
+        label: "Server: {{ _foreign_server }}"
+      loop: "{{ _patroni_fdw_existing }}"
+      when: (_orphan_tables | length > 0) or (_absent_tables | length > 0)
 
     - name: Set FDW delete user mappings fact
       ansible.builtin.set_fact:
         _patroni_fdw_delete_user_mappings: "{{ _patroni_fdw_delete_user_mappings + [_map_user] }}"
       vars:
-        _map_default:
+        _map_user:
           tables: "{{ _target_servers | map(attribute='tables') | flatten }}"
-        _foreign_server: "{{ item.foreign_server_name }}"
+          foreign_server: "{{ _foreign_server }}"
+          source: "{{ item.0.source }}"
+          remote: "{{ item.0.remote }}"
+          user: "{{ _user }}"
+        _foreign_server: "{{ item.0.foreign_server }}"
         _target_servers: "{{ _patroni_cluster_fdw_update | selectattr('foreign_server', 'equalto', _foreign_server) }}"
         _target_users: "{{ _target_servers | map(attribute='users') | flatten | map(attribute='key') | flatten }}"
-        _user: "{{ item.option_value }}"
-        _map_user: "{{ item | combine(_map_default) }}"
+        _user: "{{ item.1.authorization_identifier }}"
       loop_control:
         label: "Server Name: {{ _foreign_server }} - Username: {{ _user }}"
-      loop: "{{ _patroni_fdw_existing_user_mappings | selectattr('option_name', 'equalto', 'user') }}"
+      loop: "{{ _patroni_fdw_existing | subelements('users') }}"
       when: not _user in _target_users
 
     - name: Query existing PostgreSQL schemas
@@ -319,38 +397,39 @@
 
     - name: Debug existing foreign data wrapper servers
       ansible.builtin.debug:
-        msg: "{{ _foreign_servers }}"
+        msg: "{{ _fdw | zip(_users_dict) | map('combine') }}"
       vars:
-        _query_server: "{{ _patroni_fdw_server_results.results | default([]) }}"
-        _query_server_select: "{{ _query_server | selectattr('query_result', 'defined') }}"
-        _query_server_results: "{{ _query_server_select | map(attribute='query_result') | flatten }}"
-        _foreign_servers: "{{ _query_server_results | selectattr('srvname', 'defined') | map(attribute='srvname') | flatten }}"
-
-    - name: Debug existing user mappings
-      ansible.builtin.debug:
-        msg: "{{ _patroni_fdw_existing_user_mappings }}"
-
-    - name: Debug existing foreign tables
-      ansible.builtin.debug:
-        msg: "{{ _patroni_fdw_existing_tables }}"
+        _fdw: "{{ _patroni_fdw_existing }}"
+        _users: "{{ _fdw | map(attribute='users') | map('map', attribute='authorization_identifier') }}"
+        _users_dict: "{{ _users | map(_to_dict, 'users') }}"
 
     - name: Debug new foreign data wrappers
       ansible.builtin.debug:
-        msg: "{{ _fdw }}"
+        msg: "{{ _fdw | zip(_users_dict) | map('combine') }}"
       vars:
-        _fdw: "{{ _patroni_cluster_fdw_create | map(_drop_attrs, ['password']) }}"
+        _fdw: "{{ _patroni_cluster_fdw_create }}"
+        _users: "{{ _fdw | map(attribute='users') | map('map', attribute='key') }}"
+        _users_dict: "{{ _users | map(_to_dict, 'users') }}"
 
     - name: Debug foreign data wrapper targets
       ansible.builtin.debug:
-        msg: "{{ _fdw }}"
+        msg: "{{ _fdw | zip(_users_dict) | map('combine') }}"
       vars:
-        _fdw: "{{ _patroni_cluster_fdw_update | map(_drop_attrs, ['password']) }}"
+        _fdw: "{{ _patroni_cluster_fdw_update }}"
+        _users: "{{ _fdw | map(attribute='users') | map('map', attribute='key') }}"
+        _users_dict: "{{ _users | map(_to_dict, 'users') }}"
 
-    - name: Debug stale foreign data wrappers
+    - name: Debug stale remote foreign data wrappers
       ansible.builtin.debug:
-        msg: "{{ _fdw }}"
+        msg: "{{ _delete_fdw }}"
       vars:
-        _fdw: "{{ _patroni_cluster_fdw_delete | map(_drop_attrs, ['password']) }}"
+        _delete_fdw: "{{ _patroni_cluster_fdw_delete | map(attribute='foreign_server') }}"
+
+    - name: Debug foreign data wrappers orphaned
+      ansible.builtin.debug:
+        msg: "{{ _orphan_fdw }}"
+      vars:
+        _orphan_fdw: "{{ _patroni_cluster_fdw_orphan | map(attribute='foreign_server') }}"
 
     - name: Debug stale foreign tables
       ansible.builtin.debug:
@@ -453,10 +532,9 @@
         _password_enabled: "password '{{ _password }}', password_required '{{ _required }}'"
         _password_disabled: "password_required '{{ _required }}'"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
-        _user_mappings: "{{ _patroni_fdw_existing_user_mappings }}"
-        _users_catalog: "{{ _user_mappings | selectattr('foreign_server_name', 'equalto', _foreign_server) }}"
-        _users: "{{ _users_catalog | selectattr('option_name', 'equalto', 'user') }}"
-        _existing_users: "{{ _users | map(attribute='option_value') | flatten }}"
+        _servers: "{{ _patroni_fdw_existing | selectattr('foreign_server', 'equalto', _foreign_server) }}"
+        _user_mappings: "{{ _servers | map(attribute='users') | flatten }}"
+        _existing_users: "{{ _user_mappings | map(attribute='authorization_identifier') | flatten }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - User: {{ _username }}"
       loop: "{{ _fdw | subelements('users') }}"
@@ -476,9 +554,9 @@
       vars:
         _server_object: "{{ item.0 }}"
         _user_object: "{{ item.1 }}"
-        _user_mappings: "{{ _patroni_fdw_existing_user_mappings }}"
-        _users_catalog: "{{ _user_mappings | selectattr('foreign_server_name', 'equalto', _foreign_server) }}"
-        _users: "{{ _users_catalog | selectattr('option_name', 'equalto', 'password_required') }}"
+        _servers: "{{ _patroni_fdw_existing | selectattr('foreign_server', 'equalto', _foreign_server) }}"
+        _user_mappings: "{{ _servers | map(attribute='users') | flatten }}"
+        _users: "{{ _user_mappings | selectattr('option_name', 'equalto', 'password_required') }}"
         _existing_password_disabled: "{{ _users | rejectattr('option_value') }}"
         _existing_users: "{{ _existing_password_disabled | map(attribute='authorization_identifier') | flatten }}"
         _foreign_server: "{{ _server_object.foreign_server }}"
@@ -503,12 +581,14 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          CREATE FOREIGN TABLE {{ _foreign_table_name }}
+          CREATE FOREIGN TABLE "{{ _target_schema }}"."{{ _target_table }}"
           ({{ _columns }})
           SERVER {{ _foreign_server }}
           OPTIONS (schema_name '{{ _remote_schema }}', table_name '{{ _table_name }}');
         autocommit: true
       vars:
+        _target_schema: "{{ _foreign_table_name.split('.')[0] }}"
+        _target_table: "{{ _foreign_table_name.split('.')[1] }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
         _server: "{{ item.0 }}"
         _table: "{{ item.1 }}"
@@ -516,20 +596,18 @@
         _db_source: "{{ _server.source }}"
         _table_name: "{{ _table.key }}"
         _foreign_table_name: "{{ _source_schema }}.{{ _table_name }}_{{ _suffix }}"
-        _columns: "{{ _table.value.columns | join(', ') }}"
+        _columns: '{{ _table.value.columns | map(''split'', '' '', 1) | map(''join'', ''" '') | map(''regex_replace'', ''^'', ''"'') | join('', '') }}'
         _remote_schema: "{{ _table.value.remote_schema }}"
         _source_schema: "{{ _table.value.source_schema }}"
         _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
-        _existing: "{{ _patroni_fdw_existing_tables | selectattr('source', 'equalto', _db_source) }}"
+        _existing: "{{ _patroni_fdw_existing | selectattr('foreign_server', 'equalto', _foreign_server) }}"
         _existing_tables: "{{ _existing | map(attribute='tables') | flatten }}"
-        _existing_tables_option: "{{ _existing_tables | selectattr('option_name', 'defined') }}"
-        _existing_table_objects: "{{ _existing_tables_option | selectattr('option_name', 'equalto', 'table_name') | flatten }}"
-        _existing_table_names: "{{ _existing_table_objects | map(attribute='option_value') }}"
+        _existing_table_names: "{{ _existing_tables | selectattr('foreign_table_name', 'defined') | map(attribute='foreign_table_name') }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Foreign_table: {{ _foreign_table_name }} - Table_name: {{ _table_name }}"
       loop: "{{ _fdw | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
-      when: not _table_name in _existing_table_names
+      when: not _target_table in _existing_table_names
       no_log: "{{ _patroni_nolog }}"
 
     - name: Manage PostgreSQL grant usage privs
@@ -555,9 +633,11 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          GRANT SELECT ON TABLE {{ _table_name }} TO {{ _users }};
+          GRANT SELECT ON TABLE "{{ _target_schema }}"."{{ _target_table }}" TO {{ _users }};
         autocommit: true
       vars:
+        _target_schema: "{{ _table_name.split('.')[0] }}"
+        _target_table: "{{ _table_name.split('.')[1] }}"
         _server_object: "{{ item.0 }}"
         _table_object: "{{ item.1 }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
@@ -579,17 +659,19 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          REVOKE SELECT ON TABLE {{ _table_name }} FROM {{ _username }};
+          REVOKE SELECT ON TABLE "{{ _target_schema }}"."{{ _target_table }}" FROM {{ _username }};
         autocommit: true
       vars:
+        _target_schema: "{{ _table_name.split('.')[0] }}"
+        _target_table: "{{ _table_name.split('.')[1] }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
         _user: "{{ item.0 }}"
         _table: "{{ item.1 }}"
-        _foreign_server: "{{ _user.foreign_server_name }}"
-        _db_source: "{{ _user.foreign_server_catalog }}"
+        _foreign_server: "{{ _user.foreign_server }}"
+        _db_source: "{{ _user.source }}"
         _schema: "{{ _table.value.source_schema }}"
         _table_name: "{{ _schema }}.{{ _table.key }}_{{ _suffix }}"
-        _username: "{{ _user.option_value }}"
+        _username: "{{ _user.user }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Foreign_table: {{ _table_name }} - User: {{ _username }}"
       loop: "{{ _patroni_fdw_delete_user_mappings | subelements('tables') }}"
@@ -605,9 +687,9 @@
         autocommit: true
       vars:
         _user: "{{ item }}"
-        _foreign_server: "{{ _user.foreign_server_name }}"
-        _db_source: "{{ _user.foreign_server_catalog }}"
-        _username: "{{ _user.option_value }}"
+        _foreign_server: "{{ _user.foreign_server }}"
+        _db_source: "{{ _user.source }}"
+        _username: "{{ _user.user }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - User: {{ _username }}"
       loop: "{{ _patroni_fdw_delete_user_mappings }}"
@@ -619,44 +701,23 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          REVOKE SELECT ON TABLE {{ _table_name }} FROM {{ _users }};
+          REVOKE SELECT ON TABLE "{{ _target_schema }}"."{{ _target_table }}" FROM {{ _users }};
         autocommit: true
       vars:
+        _target_schema: "{{ _table_name.split('.')[0] }}"
+        _target_table: "{{ _table_name.split('.')[1] }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
-        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
         _server: "{{ item.0 }}"
         _table: "{{ item.1 }}"
         _db_source: "{{ _server.source }}"
         _foreign_server: "{{ _server.foreign_server }}"
         _db_remote: "{{ _server.remote }}"
-        _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
-        _is_key: "{{ _table.key is defined }}"
-        _table_key: "{{ _table.key }}"
-        _table_filter: "{{ _table_key if _is_key else _table.option_value }}"
-        _table_name: "{{ _schema }}.{{ _table_filter }}_{{ _suffix }}"
-        _users: "{{ _server.users | map(attribute='key') | join(', ') }}"
+        _schema: "{{ _table.source_schema }}"
+        _table_name: "{{ _schema }}.{{ _table.name }}"
+        _users: "{{ _server.users | join(', ') }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Database: {{ _db_source }} - Foreign_table: {{ _table_name }}"
-      loop: "{{ _delete_tables | subelements('tables') }}"
-      become_user: "{{ _postgresql_user }}"
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Revoke PostgreSQL grant usage privs
-      community.postgresql.postgresql_query:
-        login_db: "{{ _db_source }}"
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: >-
-          REVOKE USAGE ON FOREIGN SERVER {{ _foreign_server }} FROM {{ _users }};
-        autocommit: true
-      vars:
-        _server_object: "{{ item }}"
-        _db_source: "{{ _server_object.source }}"
-        _db_remote: "{{ _server_object.remote }}"
-        _foreign_server: "{{ _server_object.foreign_server }}"
-        _users: "{{ _server_object.users | map(attribute='key') | join(', ') }}"
-      loop_control:
-        label: "Server: {{ _foreign_server }} - Database: {{ _db_source }}"
-      loop: "{{ _patroni_cluster_fdw_delete }}"
+      loop: "{{ _patroni_fdw_delete_tables | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
 
@@ -665,43 +726,22 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          DROP FOREIGN TABLE {{ _table_name }};
+          DROP FOREIGN TABLE "{{ _target_schema }}"."{{ _target_table }}";
         autocommit: true
       vars:
+        _target_schema: "{{ _table_name.split('.')[0] }}"
+        _target_table: "{{ _table_name.split('.')[1] }}"
         _suffix: "{{ _patroni_cluster_fdw_table_suffix }}"
-        _delete_tables: "{{ _patroni_fdw_delete_tables + _patroni_cluster_fdw_delete }}"
         _server: "{{ item.0 }}"
         _table: "{{ item.1 }}"
         _db_source: "{{ _server.source }}"
         _foreign_server: "{{ _server.foreign_server }}"
         _db_remote: "{{ _server.remote }}"
-        _schema: "{{ _table.value.source_schema if _is_key else _table.foreign_table_schema }}"
-        _is_key: "{{ _table.key is defined }}"
-        _table_key: "{{ _table.key }}"
-        _table_filter: "{{ _table_key if _is_key else _table.option_value }}"
-        _table_name: "{{ _schema }}.{{ _table_filter }}_{{ _suffix }}"
+        _schema: "{{ _table.source_schema }}"
+        _table_name: "{{ _schema }}.{{ _table.name }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Database: {{ _db_source }} - Foreign_table: {{ _table_name }}"
-      loop: "{{ _delete_tables | subelements('tables') }}"
-      become_user: "{{ _postgresql_user }}"
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Drop PostgreSQL user mappings
-      community.postgresql.postgresql_query:
-        login_db: "{{ _db_source }}"
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: >-
-          DROP USER MAPPING FOR {{ _username }}
-          SERVER {{ _foreign_server }};
-        autocommit: true
-      vars:
-        _server_object: "{{ item.0 }}"
-        _foreign_server: "{{ _server_object.foreign_server }}"
-        _db_source: "{{ _server_object.source }}"
-        _username: "{{ item.1.key }}"
-      loop_control:
-        label: "Server: {{ _foreign_server }} - User: {{ _username }}"
-      loop: "{{ _patroni_cluster_fdw_delete | subelements('users') }}"
+      loop: "{{ _patroni_fdw_delete_tables | subelements('tables') }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"
 
@@ -710,13 +750,13 @@
         login_db: "{{ _db_source }}"
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: >-
-          DROP SERVER {{ _foreign_server }};
+          DROP SERVER {{ _foreign_server }} cascade;
         autocommit: true
       vars:
         _foreign_server: "{{ item.foreign_server }}"
         _db_source: "{{ item.source }}"
       loop_control:
         label: "Server: {{ _foreign_server }}"
-      loop: "{{ _patroni_cluster_fdw_delete }}"
+      loop: "{{ _patroni_cluster_fdw_orphan + _patroni_cluster_fdw_delete }}"
       become_user: "{{ _postgresql_user }}"
       no_log: "{{ _patroni_nolog }}"

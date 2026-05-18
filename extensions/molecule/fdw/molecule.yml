@@ -141,50 +141,54 @@ provisioner:
                   privs: ALL
           patroni_fdw_remote_prefix: "remote"
           patroni_cluster_fdw:
-            - source: "{{ patroni_molecule_database }}"
-              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_molecule_database }}"
-              users:
-                molecule:
-                  password: "{{ patroni_molecule_password }}"
-                test:
-                  password: "{{ patroni_test_password }}"
-              tables:
-                molecule_table1:
-                  columns:
-                    - Username character varying(50) NOT NULL
-                    - CountryId integer NOT NULL
-                molecule_table2:
-                  columns:
-                    - Username character varying(50) NOT NULL
-                    - CountryId integer NOT NULL
-                  source_schema: molecule_source_schema
-                  remote_schema: molecule_remote_schema
-            - source: "{{ patroni_test_database }}"
-              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_test_database }}"
-              users:
-                molecule:
-                  password: "{{ patroni_molecule_password }}"
-                test:
-                  password: "{{ patroni_test_password }}"
-              tables:
-                test_table1:
-                  columns:
-                    - Username character varying(50) NOT NULL
-                    - CountryId integer NOT NULL
-            - source: "{{ patroni_bladb_database }}"
-              remote: "{{ patroni_fdw_remote_prefix }}_{{ patroni_bladb_database }}"
-              users:
-                molecule:
-                  password: "{{ patroni_molecule_password }}"
-                test:
-                  password: "{{ patroni_test_password }}"
-              tables:
-                bladb_table1:
-                  columns:
-                    - Username character varying(50) NOT NULL
-                    - CountryId integer NOT NULL
-                  source_schema: bladb_source_schema
-                  remote_schema: bladb_remote_schema
+            remote_molecule:
+              - source: "{{ patroni_molecule_database }}"
+                users:
+                  molecule:
+                    password: "{{ patroni_molecule_password }}"
+                  test:
+                    password: "{{ patroni_test_password }}"
+                tables:
+                  molecule_table1:
+                    columns:
+                      - Username character varying(50) NOT NULL
+                      - CountryId integer NOT NULL
+                  molecule_table2:
+                    columns:
+                      - Username character varying(50) NOT NULL
+                      - CountryId integer NOT NULL
+                    source_schema: molecule_source_schema
+                    remote_schema: molecule_remote_schema
+                  molecule_table3:
+                    columns:
+                      - Username character varying(50) NOT NULL
+                      - CountryId integer NOT NULL
+            remote_test:
+              - source: "{{ patroni_test_database }}"
+                users:
+                  molecule:
+                    password: "{{ patroni_molecule_password }}"
+                  test:
+                    password: "{{ patroni_test_password }}"
+                tables:
+                  test_table1:
+                    columns:
+                      - Username character varying(50) NOT NULL
+                      - CountryId integer NOT NULL
+            remote_BlaDB:
+              - source: "{{ patroni_bladb_database }}"
+                users:
+                  molecule:
+                    password: "{{ patroni_molecule_password }}"
+                  test:
+                    password: "{{ patroni_test_password }}"
+                tables:
+                  BlaDB_table1:
+                    columns:
+                      - Username character varying(50) NOT NULL
+                      - CountryId integer NOT NULL
+                    source_schema: bladb_source_schema
+                    remote_schema: bladb_remote_schema
 verifier:
   name: ansible
 scenario:
