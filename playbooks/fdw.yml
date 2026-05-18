@@ -18,7 +18,6 @@
         _patroni_fdw_list: "{{ _fdw }}"
         _patroni_fdw_delete_tables: []
         _patroni_fdw_delete_user_mappings: []
-        _patroni_cluster_fdw_targets: []
         _to_dict: "nephelaiio.plugins.to_dict"
         _map_format: "nephelaiio.plugins.map_format"
         _drop_attrs: "nephelaiio.plugins.drop_attributes"
@@ -119,27 +118,29 @@
 
     - name: Set PostgreSQL FDW target fact
       ansible.builtin.set_fact:
-        _patroni_cluster_fdw_targets: "{{ _patroni_cluster_fdw_targets + [item | combine(_dict_overwritten)] }}"
+        _patroni_cluster_fdw_targets: "{{ _users | flatten }}"
       vars:
+        _fdw: "{{ _patroni_cluster_fdw_databases | sort(attribute='source') }}"
+        _fdw_cons: "{{ _fdw | map(_cons) }}"
         _map_tables_default:
           source_schema: public
           remote_schema: public
         _map_users_default:
           password_required: true
-        _users: "{{ item.users | sort(attribute='key') }}"
-        _value_users: "{{ _users | map(attribute='value') }}"
-        _value_users_overwritten: "{{ [_map_users_default] | product(_value_users) | map('combine') }}"
-        _value_users_dict: "{{ _value_users_overwritten | map(_to_dict, 'value') }}"
-        _tables: "{{ item.tables | sort(attribute='key') }}"
-        _value_tables: "{{ _tables | map(attribute='value') }}"
-        _value_tables_overwritten: "{{ [_map_tables_default] | product(_value_tables) | map('combine') }}"
-        _value_tables_dict: "{{ _value_tables_overwritten | map(_to_dict, 'value') }}"
-        _dict_overwritten:
-          tables: "{{ _tables | zip(_value_tables_dict) | map('combine') }}"
-          users: "{{ _users | zip(_value_users_dict) | map('combine') }}"
-      loop_control:
-        label: "{{ item.source }}"
-      loop: "{{ _patroni_cluster_fdw_databases }}"
+        _users_data: "{{ _fdw | map(attribute='users') | map('sort', attribute='key') }}"
+        _user_values: "{{ _users_data | map('map', attribute='value') }}"
+        _value_users_overwritten: "{{ [[_map_users_default]] | product(_user_values) | map(_inner_product) | map('map', 'combine') }}"
+        _value_users_dict: "{{ _value_users_overwritten | map('map', _to_dict, 'value') }}"
+        _users_overwritten: "{{ _users_data | zip(_value_users_dict) | map(_pairs) | map('map', 'combine') | map(_cons) }}"
+        _users_dict: "{{ _users_overwritten | map('map', _to_dict, 'users') }}"
+        _tables_data: "{{ _fdw | map(attribute='tables') | map('sort', attribute='key') }}"
+        _value_tables: "{{ _tables_data | map('map', attribute='value') }}"
+        _value_tables_overwritten: "{{ [[_map_tables_default]] | product(_value_tables) | map(_inner_product) | map('map', 'combine') }}"
+        _value_tables_dict: "{{ _value_tables_overwritten | map('map', _to_dict, 'value') }}"
+        _tables_overwritten: "{{ _tables_data | zip(_value_tables_dict) | map(_pairs) | map('map', 'combine') | map(_cons) }}"
+        _tables_dict: "{{ _tables_overwritten | map('map', _to_dict, 'tables') }}"
+        _tables: "{{ _fdw_cons | zip(_tables_dict) | map(_pairs) | map('map', 'combine') }}"
+        _users: "{{ _tables | zip(_users_dict) | map(_pairs) | map('map', 'combine') }}"
 
     - name: Query existing databases
       community.postgresql.postgresql_query:
