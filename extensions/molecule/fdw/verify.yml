@@ -25,29 +25,37 @@
         _foreign_servers_dict: "{{ _foreign_servers_format | map(_to_dict, 'foreign_server') }}"
         _targets_overwritten: "{{ _targets | zip(_foreign_servers_dict) | map('combine') }}"
 
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT datname FROM pg_database WHERE datallowconn;
+        login_db: "postgres"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_databases_results
+      no_log: "{{ _patroni_nolog }}"
+
     - name: Query existing FDW servers
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT * FROM pg_foreign_server;
-        login_db: "{{ _db_source }}"
+        login_db: "{{ item }}"
       vars:
-        _db_source: "{{ item.source }}"
-      loop_control:
-        label: "{{ _db_source }}"
-      loop: "{{ _patroni_cluster_fdw_databases }}"
+        _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
+        _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
+      loop: "{{ _db_names }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_fdw_server_results
 
     - name: Set PostgreSQL foreign data wrapper server facts
       ansible.builtin.set_fact:
-        _fdw_existing_servers: "{{ _query | map(attribute='query_result') | flatten | unique }}"
+        _fdw_existing_servers: "{{ _query | map(attribute='query_result') | flatten }}"
       vars:
         _results: "{{ _patroni_fdw_server_results.results | default([]) }}"
         _query: "{{ _results | selectattr('query_result') }}"
 
     - name: Debug existing FDW servers
       ansible.builtin.debug:
-        msg: "{{ _fdw_existing_servers | selectattr('srvname', 'defined') | map(attribute='srvname') }}"
+        msg: "{{ _fdw_existing_servers | map(attribute='srvname') }}"
 
     - name: Debug target FDW servers
       ansible.builtin.debug:
@@ -110,7 +118,7 @@
       ansible.builtin.debug:
         msg: "{{ _users | unique }}"
       vars:
-        _users: "{{ _fdw_targets | map(attribute='users') | flatten | map(attribute='key') | flatten }}"
+        _users: "{{ _fdw_existing_user_mappings | map(attribute='authorization_identifier') }}"
 
     - name: Validate PostgreSQL foreign data wrapper user mappings
       ansible.builtin.assert:
