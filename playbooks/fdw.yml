@@ -375,25 +375,27 @@
         that: _schemas_filter | length == 0
         fail_msg: "There are missing schemas: {{ _schemas_filter }}"
       vars:
+        _targets: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
         _results: "{{ _patroni_fdw_schemas.results | default([]) }}"
         _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
         _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
-        _fdw: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
-        _tables: "{{ _fdw | map(attribute='tables') | flatten }}"
+        _tables: "{{ _targets | map(attribute='tables') | flatten }}"
         _target_schemas: "{{ _tables | selectattr('value.source_schema', 'defined') | map(attribute='value.source_schema') | lower }}"
         _target_schemas_default: "{{ _target_schemas + ['public'] | unique }}"
         _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
+      when: _targets | length > 0
 
     - name: Verify postgresql foreign data wrapper user mapping password defined
       ansible.builtin.assert:
         that: _password | length == 0
         fail_msg: "Foreign data wrapper user mapping passwords must be defined for these users: [{{ _usernames | join(', ') }}]"
       vars:
-        _databases: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
-        _users: "{{ _databases | map(attribute='users') | flatten }}"
+        _targets: "{{ _patroni_cluster_fdw_update + _patroni_cluster_fdw_create }}"
+        _users: "{{ _targets | map(attribute='users') | flatten }}"
         _password_enabled: "{{ _users | selectattr('value.password_required') }}"
         _password: "{{ _password_enabled | rejectattr('value.password', 'defined') }}"
         _usernames: "{{ _password | map(attribute='key') }}"
+      when: _targets | length > 0
 
     - name: Debug existing foreign data wrapper servers
       ansible.builtin.debug:
