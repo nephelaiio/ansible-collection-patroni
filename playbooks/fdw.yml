@@ -264,6 +264,9 @@
         _patroni_fdw_targets: "{{ _cluster_fdw_overwritten }}"
       vars:
         _map_fdw_defaults:
+          updatable: true
+          truncatable: true
+          fetch_size: 100
           extension: postgres_fdw
         _server_suffix: "{{ _patroni_cluster_fdw_server_suffix }}"
         _app_name_suffix: "{{ _patroni_cluster_fdw_app_name_suffix }}"
@@ -472,9 +475,9 @@
         _db_source: "{{ item.source }}"
         _db_remote: "{{ item.remote }}"
         _extension: "{{ item.extension | lower }}"
-        _updatable: "{{ item.updatable | default('true') }}"
-        _truncatable: "{{ item.truncatable | default('true') }}"
-        _fetch_size: "{{ item.fetch_size | default('100') }}"
+        _updatable: "{{ item.updatable }}"
+        _truncatable: "{{ item.truncatable }}"
+        _fetch_size: "{{ item.fetch_size }}"
         _app_name: "{{ item.application_name }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Host: {{ _host }} - App: {{ _app_name }}"
@@ -501,9 +504,9 @@
         _db_source: "{{ item.source }}"
         _db_remote: "{{ item.remote }}"
         _extension: "{{ item.extension | lower }}"
-        _updatable: "{{ item.updatable | default('true') }}"
-        _truncatable: "{{ item.truncatable | default('true') }}"
-        _fetch_size: "{{ item.fetch_size | default('100') }}"
+        _updatable: "{{ item.updatable }}"
+        _truncatable: "{{ item.truncatable }}"
+        _fetch_size: "{{ item.fetch_size }}"
         _app_name: "{{ item.application_name }}"
       loop_control:
         label: "Server: {{ _foreign_server }} - Host: {{ _host }} - App: {{ _app_name }}"
