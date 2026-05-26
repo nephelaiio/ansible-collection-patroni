@@ -402,7 +402,7 @@
 
     - name: Build installed PostgreSQL extensions
       ansible.builtin.set_fact:
-        _patroni_installed_extensions: "{{ _query }}"
+        _patroni_installed_extensions: "{{ _query | flatten }}"
       vars:
         _results: "{{ _patroni_extension_results.results | default([]) }}"
         _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'name') }}"
