@@ -256,22 +256,6 @@
       ansible.builtin.set_fact:
         _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
 
-    - name: Query installed PostgreSQL extensions
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT * from pg_available_extensions where default_version <> installed_version;
-        login_db: "postgres"
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_extension_results
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Build installed PostgreSQL extensions
-      ansible.builtin.set_fact:
-        _patroni_installed_extensions: "{{ _extensions }}"
-      vars:
-        _query: "{{ _patroni_extension_results.query_result | default([]) }}"
-        _extensions: "{{ _query | selectattr('name') | sort(attribute='name') }}"
-
     - name: Debug cluster state
       ansible.builtin.debug:
         var: _cluster_state.json
@@ -280,10 +264,6 @@
       ansible.builtin.debug:
         var: _cluster_leader
 
-    - name: Debug installed PostgreSQL extensions
-      ansible.builtin.debug:
-        var: _patroni_installed_extensions
-
     - name: Verify replicas are healthy
       ansible.builtin.assert:
         that:
@@ -291,20 +271,6 @@
           - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | selectattr('state', 'in', ['running', 'streaming']) | list | length > 0
         fail_msg: "No healthy replicas found for switchover"
         success_msg: "Healthy replicas detected, proceeding with switchover"
-
-    - name: Update installed PostgreSQL extensions
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: "ALTER extension {{ _name }} update;"
-        login_db: "postgres"
-      vars:
-        _name: "{{ item.name }}"
-      become_user: "{{ _postgresql_user }}"
-      loop_control:
-        label: "{{ _name }}"
-      loop: "{{ _patroni_installed_extensions }}"
-      no_log: "{{ _patroni_nolog }}"
-      when: item.default_version is version(item.installed_version, '>')
 
     - name: Perform cluster switchover
       block:
@@ -397,6 +363,54 @@
       register: patroni_status
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+
+- name: Set cluster facts
+  ansible.builtin.import_playbook: nephelaiio.patroni.facts
+  vars:
+    patroni_bootstrap_allow: false
+    patroni_cluster_prefix_group: update
+    patroni_standby_prefix_group: update
+
+- name: Update Patroni PostgreSQL extensions
+  hosts: "_patroni_update_master"
+  become: true
+  any_errors_fatal: true
+  vars_files:
+    - main.yml
+  tasks:
+    - name: Query installed PostgreSQL extensions
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT * from pg_available_extensions where default_version <> installed_version;
+        login_db: "postgres"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_extension_results
+      no_log: "{{ _patroni_nolog }}"
+
+    - name: Build installed PostgreSQL extensions
+      ansible.builtin.set_fact:
+        _patroni_installed_extensions: "{{ _extensions }}"
+      vars:
+        _query: "{{ _patroni_extension_results.query_result | default([]) }}"
+        _extensions: "{{ _query | selectattr('name') | sort(attribute='name') }}"
+
+    - name: Debug installed PostgreSQL extensions
+      ansible.builtin.debug:
+        var: _patroni_installed_extensions
+
+    - name: Update installed PostgreSQL extensions
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "ALTER extension {{ _name }} update;"
+        login_db: "postgres"
+      vars:
+        _name: "{{ item.name }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ _name }}"
+      loop: "{{ _patroni_installed_extensions }}"
+      no_log: "{{ _patroni_nolog }}"
+      when: item.default_version is version(item.installed_version, '>')
 
 - name: Update Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.update
