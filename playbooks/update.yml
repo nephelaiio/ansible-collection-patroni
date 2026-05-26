@@ -378,21 +378,34 @@
   vars_files:
     - main.yml
   tasks:
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT datname FROM pg_database WHERE datallowconn;
+        login_db: "postgres"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_databases_results
+      no_log: "{{ _patroni_nolog }}"
+
     - name: Query installed PostgreSQL extensions
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT * from pg_available_extensions where default_version <> installed_version;
-        login_db: "postgres"
+        login_db: "{{ item }}"
+      vars:
+        _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
+        _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
+      loop: "{{ _db_names }}"
       become_user: "{{ _postgresql_user }}"
       register: _patroni_extension_results
       no_log: "{{ _patroni_nolog }}"
 
     - name: Build installed PostgreSQL extensions
       ansible.builtin.set_fact:
-        _patroni_installed_extensions: "{{ _extensions }}"
+        _patroni_installed_extensions: "{{ _query }}"
       vars:
-        _query: "{{ _patroni_extension_results.query_result | default([]) }}"
-        _extensions: "{{ _query | selectattr('name') | sort(attribute='name') }}"
+        _results: "{{ _patroni_extension_results.results | default([]) }}"
+        _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'name') }}"
 
     - name: Debug installed PostgreSQL extensions
       ansible.builtin.debug:
@@ -402,15 +415,15 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "ALTER extension {{ _name }} update;"
-        login_db: "postgres"
+        login_db: "{{ item.0.item }}"
       vars:
-        _name: "{{ item.name }}"
+        _name: "{{ item.1.name }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _name }}"
-      loop: "{{ _patroni_installed_extensions }}"
+      loop: "{{ _patroni_installed_extensions | subelements('query_result') }}"
       no_log: "{{ _patroni_nolog }}"
-      when: item.default_version is version(item.installed_version, '>')
+      when: item.1.default_version is version(item.1.installed_version, '>')
 
 - name: Update Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.update
