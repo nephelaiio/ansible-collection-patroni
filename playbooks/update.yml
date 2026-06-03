@@ -252,6 +252,37 @@
         timeout: 10
       register: _cluster_state
 
+    - name: Query existing databases
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT datname FROM pg_database WHERE datallowconn;
+        login_db: "postgres"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_databases_results
+      no_log: "{{ _patroni_nolog }}"
+
+    - name: Query installed PostgreSQL extensions
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: SELECT * from pg_available_extensions where default_version <> installed_version;
+        login_db: "{{ item }}"
+      vars:
+        _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
+        _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
+      loop: "{{ _db_names }}"
+      become_user: "{{ _postgresql_user }}"
+      register: _patroni_extension_results
+      no_log: "{{ _patroni_nolog }}"
+
+    - name: Build installed PostgreSQL extensions
+      ansible.builtin.set_fact:
+        _patroni_installed_extensions: "{{ _query | flatten }}"
+      vars:
+        _results: "{{ _patroni_extension_results.results | default([]) }}"
+        _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'name') }}"
+      delegate_facts: true
+      delegate_to: localhost
+
     - name: Set cluster state facts
       ansible.builtin.set_fact:
         _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
@@ -364,52 +395,53 @@
       until: patroni_status is succeeded
       delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
-- name: Set cluster facts
-  ansible.builtin.import_playbook: nephelaiio.patroni.facts
-  vars:
-    patroni_bootstrap_allow: false
-    patroni_cluster_prefix_group: update
-    patroni_standby_prefix_group: update
-
 - name: Update Patroni PostgreSQL extensions
-  hosts: "_patroni_update_master"
+  hosts: "{{ _patroni_cluster_hostgroup }}"
   become: true
   any_errors_fatal: true
   vars_files:
     - main.yml
   tasks:
-    - name: Query existing databases
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT datname FROM pg_database WHERE datallowconn;
-        login_db: "postgres"
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_databases_results
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Query installed PostgreSQL extensions
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT * from pg_available_extensions where default_version <> installed_version;
-        login_db: "{{ item }}"
-      vars:
-        _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
-        _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
-      loop: "{{ _db_names }}"
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_extension_results
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Build installed PostgreSQL extensions
+    - name: Set installed PostgreSQL extensions
       ansible.builtin.set_fact:
-        _patroni_installed_extensions: "{{ _query | flatten }}"
+        _patroni_installed_extensions: "{{ _extensions }}"
       vars:
-        _results: "{{ _patroni_extension_results.results | default([]) }}"
-        _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'name') }}"
+        _extensions: "{{ hostvars['localhost']['_patroni_installed_extensions'] }}"
 
     - name: Debug installed PostgreSQL extensions
       ansible.builtin.debug:
         var: _patroni_installed_extensions
+
+    - name: End play when there are no installed extensions
+      ansible.builtin.meta: end_play
+      when: _patroni_installed_extensions | length == 0
+
+    - name: Slurp Patroni configuration
+      ansible.builtin.slurp:
+        path: "{{ _patroni_cluster_config_file }}"
+      register: _patroni_config_query
+
+    - name: Set Patroni configuration facts
+      ansible.builtin.set_fact:
+        _api_username: "{{ _config_data.restapi.authentication.username }}"
+        _api_password: "{{ _config_data.restapi.authentication.password }}"
+      vars:
+        _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+
+    - name: Verify primary status
+      ansible.builtin.uri:
+        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/primary"
+        user: "{{ _api_username }}"
+        password: "{{ _api_password }}"
+        method: GET
+        status_code: 200
+        timeout: 3
+      register: _primary_query
+      ignore_errors: true
+
+    - name: End host when patroni node is not primary
+      ansible.builtin.meta: end_host
+      when: _primary_query is failed | bool
 
     - name: Update installed PostgreSQL extensions
       community.postgresql.postgresql_query:
