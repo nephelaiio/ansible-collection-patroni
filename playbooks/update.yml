@@ -276,10 +276,18 @@
 
     - name: Build installed PostgreSQL extensions
       ansible.builtin.set_fact:
-        _patroni_installed_extensions: "{{ _query | flatten }}"
+        _patroni_installed_extensions: "{{ _extensions | flatten }}"
       vars:
-        _results: "{{ _patroni_extension_results.results | default([]) }}"
+        _to_dict: "nephelaiio.plugins.to_dict"
+        _cons: "nephelaiio.plugins.cons"
+        _pairs: "nephelaiio.plugins.pairs"
+        _results: "{{ _patroni_extension_results.results | default([]) | sort(attribute='item') }}"
+        _databases_list: "{{ _results | map(attribute='item') }}"
+        _databases: "{{ _databases_list | map(_to_dict, 'database') | map(_cons) }}"
         _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'extname') }}"
+        _extnames: "{{ _query | map('map', attribute='extname') | map(_cons) }}"
+        _extensions_dict: "{{ _extnames | map('map', _to_dict, 'extensions') }}"
+        _extensions: "{{ _databases | zip(_extensions_dict) | map(_pairs) | map('map', 'combine') }}"
       delegate_facts: true
       delegate_to: localhost
 
@@ -444,32 +452,38 @@
       when: _primary_query is failed | bool
 
     - name: Update timescaledb PostgreSQL extensions
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: "ALTER extension {{ _name }} update;"
-        login_db: "{{ item.0.item }}"
+      ansible.builtin.shell:
+        cmd: |
+          psql -X -d {{ _database }} -p {{ _port }} -c "ALTER extension {{ _extension }} update;"
+        chdir: "/usr/bin/"
+        executable: "/bin/bash"
       vars:
-        _name: "{{ item.1.extname }}"
+        _port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        _extension: "{{ item.1 }}"
+        _database: "{{ item.0.database }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
-        label: "{{ _name }}"
-      loop: "{{ _patroni_installed_extensions | subelements('query_result') }}"
+        label: "{{ _database }} {{ _extension }}"
+      loop: "{{ _patroni_installed_extensions | subelements('extensions') }}"
       no_log: "{{ _patroni_nolog }}"
-      when: _name == 'timescaledb'
+      when: _extension == 'timescaledb'
 
     - name: Update installed PostgreSQL extensions
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: "ALTER extension {{ _name }} update;"
-        login_db: "{{ item.0.item }}"
+      ansible.builtin.shell:
+        cmd: |
+          psql -X -d {{ _database }} -p {{ _port }} -c "ALTER extension {{ _extension }} update;"
+        executable: "/bin/bash"
+        chdir: "/usr/bin/"
       vars:
-        _name: "{{ item.1.name }}"
+        _port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        _extension: "{{ item.1 }}"
+        _database: "{{ item.0.database }}"
       become_user: "{{ _postgresql_user }}"
       loop_control:
-        label: "{{ _name }}"
-      loop: "{{ _patroni_installed_extensions | subelements('query_result') }}"
+        label: "{{ _database }} {{ _extension }}"
+      loop: "{{ _patroni_installed_extensions | subelements('extensions') }}"
       no_log: "{{ _patroni_nolog }}"
-      when: item.1.default_version is version(item.1.installed_version, '>')
+      when: _extension != 'timescaledb'
 
 - name: Update Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.update
