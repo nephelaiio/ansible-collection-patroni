@@ -264,7 +264,7 @@
     - name: Query installed PostgreSQL extensions
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT * from pg_available_extensions where default_version <> installed_version;
+        query: SELECT extname FROM pg_extension;
         login_db: "{{ item }}"
       vars:
         _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
@@ -279,7 +279,7 @@
         _patroni_installed_extensions: "{{ _query | flatten }}"
       vars:
         _results: "{{ _patroni_extension_results.results | default([]) }}"
-        _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'name') }}"
+        _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'extname') }}"
       delegate_facts: true
       delegate_to: localhost
 
@@ -442,6 +442,20 @@
     - name: End host when patroni node is not primary
       ansible.builtin.meta: end_host
       when: _primary_query is failed | bool
+
+    - name: Update timescaledb PostgreSQL extensions
+      community.postgresql.postgresql_query:
+        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+        query: "ALTER extension {{ _name }} update;"
+        login_db: "{{ item.0.item }}"
+      vars:
+        _name: "{{ item.1.extname }}"
+      become_user: "{{ _postgresql_user }}"
+      loop_control:
+        label: "{{ _name }}"
+      loop: "{{ _patroni_installed_extensions | subelements('query_result') }}"
+      no_log: "{{ _patroni_nolog }}"
+      when: _name == 'timescaledb'
 
     - name: Update installed PostgreSQL extensions
       community.postgresql.postgresql_query:
