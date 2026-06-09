@@ -253,10 +253,9 @@
       vars:
         _standby: "{{ _patroni_cluster_standby }}"
         _standby_group: "{{ groups[_patroni_standby_member_group] | default([]) }}"
-        _standby_length: "{{ _standby_group | length }}"
         _primary_slots: "{{ patroni_cluster_config_slots }}"
         _standby_slots: "{{ patroni_standby_config_slots }}"
-        _standby_manage: "{{ (_standby_length > 0) and (not _standby | bool) }}"
+        _standby_manage: "{{ (_standby_group | length > 0) and (not _standby | bool) }}"
         _config_slots: "{{ _standby_slots if _standby_manage else _primary_slots }}"
         _default_slots:
           slots: "{{ _config_slots }}"
