@@ -16,16 +16,13 @@ patroni_cluster_hosts: "{{ patroni_cluster_hostnames | map('regex_replace', '-',
 patroni_barman_slot_data: "[{{ [_patroni_cluster_barman_slot] |
   map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
 patroni_barman_slots: "{{ patroni_barman_slot_data | community.general.dict }}"
-patroni_cluster_config_slots: "{{ patroni_cluster_slots | combine(patroni_barman_slots, patroni_standby_slots) }}"
+patroni_cluster_config_slots: "{{ patroni_cluster_slots | combine(patroni_barman_slots) }}"
 patroni_cluster_standby_slot: standby
 patroni_standby_slot_data: "[{{ [patroni_cluster_standby_slot] |
   map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
 patroni_standby_slots: "{{ patroni_standby_slot_data | community.general.dict }}"
 patroni_standby_config_slots: "{{ patroni_cluster_slots |
-  combine(patroni_barman_slots) }}"
-patroni_config_slots: "{{ (patroni_standby_config_slots if (_patroni_cluster_standby | bool) else patroni_cluster_config_slots) }}"
-patroni_defaults_dcs_slots:
-  slots: "{{ patroni_config_slots }}"
+  combine(patroni_barman_slots, patroni_standby_slots) }}"
 patroni_dcs_attrs_exclude:
   - "slots"
 patroni_create_replica_method_defaults:
@@ -61,7 +58,7 @@ _patroni_config_pg_stat_statements: 30-pg_stat_statements.conf
 _patroni_config_pg_partman: 40-pg_partman.conf
 _patroni_config_timescaledb: 50-timescaledb.conf
 _patroni_config_dcs: "{{ patroni_config_dcs | default(patroni_defaults_dcs) |
-  nephelaiio.plugins.drop_attributes(patroni_dcs_attrs_exclude) | combine(patroni_defaults_dcs_slots) }}"
+  nephelaiio.plugins.drop_attributes(patroni_dcs_attrs_exclude) }}"
 _patroni_bootstrap_postgresql_hot_standby: "{{ patroni_bootstrap_postgresql_hot_standby | default('on') }}"
 _patroni_bootstrap_postgresql_wal_level: "{{ patroni_bootstrap_postgresql_wal_level | default('logical') }}"
 _patroni_bootstrap_postgresql_wal_keep_segments: "{{ patroni_bootstrap_postgresql_wal_keep_segments | default(8) }}"
