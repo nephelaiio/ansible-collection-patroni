@@ -30,6 +30,7 @@
       ansible.builtin.set_fact:
         _api_username: "{{ _config_data.restapi.authentication.username }}"
         _api_password: "{{ _config_data.restapi.authentication.password }}"
+        _patroni_dcs: "{{ _patroni_config_dcs | combine(patroni_defaults_dcs_slots) }}"
       vars:
         _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
 
@@ -53,7 +54,7 @@
         password: "{{ _api_password }}"
         method: PATCH
         status_code: 200
-        body: "{{ _patroni_config_dcs }}"
+        body: "{{ _patroni_dcs }}"
         body_format: json
 
     - name: Retrieve cluster DCS configuration
