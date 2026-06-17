@@ -414,7 +414,7 @@
       ansible.builtin.set_fact:
         _patroni_installed_extensions: "{{ _extensions }}"
       vars:
-        _extensions: "{{ hostvars['localhost']['_patroni_installed_extensions'] }}"
+        _extensions: "{{ hostvars['localhost']['_patroni_installed_extensions'] | default([]) }}"
 
     - name: Debug installed PostgreSQL extensions
       ansible.builtin.debug:
@@ -454,7 +454,7 @@
     - name: Update timescaledb PostgreSQL extensions
       ansible.builtin.shell:
         cmd: |
-          psql -X -d {{ _database }} -p {{ _port }} -c "ALTER extension {{ _extension }} update;"
+          psql -X -d {{ _database }} -p {{ _port }} -c 'ALTER extension "{{ _extension }}" update;'
         chdir: "/usr/bin/"
         executable: "/bin/bash"
       vars:
@@ -465,13 +465,12 @@
       loop_control:
         label: "{{ _database }} {{ _extension }}"
       loop: "{{ _patroni_installed_extensions | subelements('extensions') }}"
-      no_log: "{{ _patroni_nolog }}"
       when: _extension == 'timescaledb'
 
     - name: Update installed PostgreSQL extensions
       ansible.builtin.shell:
         cmd: |
-          psql -X -d {{ _database }} -p {{ _port }} -c "ALTER extension {{ _extension }} update;"
+          psql -X -d {{ _database }} -p {{ _port }} -c 'ALTER extension "{{ _extension }}" update;'
         executable: "/bin/bash"
         chdir: "/usr/bin/"
       vars:
@@ -482,7 +481,6 @@
       loop_control:
         label: "{{ _database }} {{ _extension }}"
       loop: "{{ _patroni_installed_extensions | subelements('extensions') }}"
-      no_log: "{{ _patroni_nolog }}"
       when: _extension != 'timescaledb'
 
 - name: Update Consul cluster
