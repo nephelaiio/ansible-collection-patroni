@@ -31,6 +31,7 @@ patroni_create_replica_method_defaults:
 # Overridable values
 _patroni_nolog: "{{ patroni_nolog | default(True) }}"
 _patroni_cluster_standby: "{{ patroni_cluster_standby | default('false') }}"
+_patroni_standby_slots_manage: "{{ patroni_standby_slots_manage | default('false') }}"
 _patroni_standby_promote_force: "{{ patroni_standby_promote_force | default('false') }}"
 _patroni_standby_replica_methods: "{{ patroni_standby_replica_methods | default(patroni_create_replica_method_defaults) }}"
 _patroni_cluster_members: "{{ patroni_cluster_members | default(groups[_patroni_cluster_hostgroup]) }}"

@@ -111,6 +111,7 @@ Cluster wide parameters
 | patroni_cluster_timescaledb_restoring               |                            off | Enable timescaledb extension                                 | false    |
 | patroni_cluster_timescaledb_telemetry_level         |                          basic | Enable timescaledb extension                                 | false    |
 | patroni_cluster_standby                             |                          false | Flag to set whether a cluster is in standby mode             | false    |
+| patroni_standby_slots_manage                        |                          false | Flag to manage standby replication slots                     | false    |
 | patroni_standby_promote_force                       |                          false | Flag required to enforce switch a cluster to standby mode    | false    |
 | patroni_cluster_primary_members                     |                             [] | A list of patroni primary members (for standby cluster only) | false    |
 | patroni_standby_replica_methods                     |                 ['basebackup'] | Standby create replica methods                               | false    |

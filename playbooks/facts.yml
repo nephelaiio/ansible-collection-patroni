@@ -249,12 +249,11 @@
     - name: Build patroni config slots
       ansible.builtin.set_fact:
         patroni_config_slots: "{{ _config_slots }}"
-        patroni_defaults_dcs_slots: "{{ _replication_slots }}"
+        patroni_defaults_dcs_slots: "{{ _default_slots }}"
       vars:
-        _standby: "{{ _patroni_cluster_standby }}"
-        _standby_group: "{{ groups[_patroni_standby_member_group] | default([]) }}"
-        _default_slots: "{{ patroni_cluster_config_slots }}"
+        _cluster_slots: "{{ patroni_cluster_config_slots }}"
         _standby_slots: "{{ patroni_standby_config_slots }}"
-        _config_slots: "{{ _standby_slots if (not _standby | bool) else _default_slots }}"
-        _replication_slots:
+        _standby_manage: "{{ (_patroni_standby_slots_manage | bool) and (not _patroni_cluster_standby | bool) }}"
+        _config_slots: "{{ _standby_slots if _standby_manage else _cluster_slots }}"
+        _default_slots:
           slots: "{{ _config_slots }}"
