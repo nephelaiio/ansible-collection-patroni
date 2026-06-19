@@ -190,6 +190,7 @@ provisioner:
           - patroni-${MOLECULE_SCENARIO_NAME}-primary-01
           - patroni-${MOLECULE_SCENARIO_NAME}-primary-02
           - patroni-${MOLECULE_SCENARIO_NAME}-primary-03
+        patroni_standby_slots_manage: true
       patroni_primary:
         patroni_cluster_name: primary
         consul_datacenter_name: "consul_{{ patroni_cluster_name }}"
