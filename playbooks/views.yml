@@ -176,7 +176,7 @@
         query: |
           CREATE MATERIALIZED VIEW IF NOT EXISTS {{ _table }}
           AS
-            {{ item.query }}
+            {{ _query }}
           WITH DATA;
         login_db: "{{ _db }}"
       vars:
