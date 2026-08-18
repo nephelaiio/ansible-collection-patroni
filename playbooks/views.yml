@@ -133,11 +133,11 @@
         _queries: "{{ _query_results | map('map', attribute='definition') | map('map', 'regex_replace', _regex, '') | map('map', 'trim') }}"
         _queries_dict: "{{ _queries | map('map', _to_dict, 'query') }}"
         _existing_views: "{{ _schemas_overwritten | zip(_queries_dict) | map(_pairs) | map('map', 'combine') | flatten }}"
-        _existing_view_queries: "{{ _existing_views | map(attribute='query') | map('trim') | map('lower') }}"
+        _existing_view_queries: "{{ _existing_views | map(attribute='query') | map('trim') }}"
         _existing_view_queries_dict: "{{ _existing_view_queries | map(_to_dict, 'query') }}"
         _existing_view_queries_overwritten: "{{ _existing_views | zip(_existing_view_queries_dict) | map('combine') | map(_drop_attrs, _attrs) }}"
         _targets: "{{ _patroni_views_overwritten }}"
-        _target_queries: "{{ _targets | map(attribute='query') | map('trim') | map('lower') }}"
+        _target_queries: "{{ _targets | map(attribute='query') | map('trim') }}"
         _target_queries_dict: "{{ _target_queries | map(_to_dict, 'query') }}"
         _targets_overwritten: "{{ _targets | zip(_target_queries_dict) | map('combine') }}"
         _present: "{{ _targets_overwritten | selectattr('state', 'equalto', 'present') }}"
@@ -176,13 +176,12 @@
         query: |
           CREATE MATERIALIZED VIEW IF NOT EXISTS {{ _table }}
           AS
-            {{ _query }}
+            {{ item.query }}
           WITH DATA;
         login_db: "{{ _db }}"
       vars:
         _db: "{{ item.login_db }}"
         _table: "{{ item.schema }}.{{ item.name }}"
-        _query: '{{ item.query | map(''split'', '' '', 1) | map(''join'', ''" '') | map(''regex_replace'', ''^'', ''"'') | join('', '') }}'
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _db }} - {{ _table }}"

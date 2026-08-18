@@ -148,10 +148,10 @@ provisioner:
           patroni_cluster_materialized_views:
             - name: view_postgres
               query: |
-                select 1
+                SELECT 1
             - name: view_test
               query: |
-                select 1
+                SELECT 1
               login_db: "{{ patroni_molecule_database }}"
 verifier:
   name: ansible
