@@ -182,6 +182,7 @@
       vars:
         _db: "{{ item.login_db }}"
         _table: "{{ item.schema }}.{{ item.name }}"
+        _query: '{{ item.query | map(''split'', '' '', 1) | map(''join'', ''" '') | map(''regex_replace'', ''^'', ''"'') | join('', '') }}'
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _db }} - {{ _table }}"
