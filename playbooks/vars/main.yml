@@ -238,7 +238,7 @@ _patroni_cluster_pgaudit_config: |
   pgaudit.log_statement_once = '{{ _patroni_cluster_pgaudit_log_statement_once }}'
 
 _patroni_cluster_pg_cron_enable: "{{ patroni_cluster_pg_cron_enable | default(True) }}"
-_patroni_cluster_pg_cron_timezone: "GMT"
+_patroni_cluster_pg_cron_timezone: "{{ patroni_cluster_pg_cron_timezone | default('GMT') }}"
 _patroni_cluster_pg_cron_config: |
   cron.timezone =  '{{ _patroni_cluster_pg_cron_timezone }}'
 _patroni_cluster_pg_cron_jobs: "{{ patroni_cluster_pg_cron_jobs | default([]) }}"
