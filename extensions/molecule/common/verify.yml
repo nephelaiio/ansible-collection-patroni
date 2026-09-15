@@ -91,7 +91,7 @@
         label: "{{ item.name }}"
       loop: "{{ patroni_cluster_roles | default([]) | selectattr('groups', 'defined') }}"
 
-    - name: Set PostgreSQL facts
+    - name: Refresh PostgreSQL facts
       ansible.builtin.include_role:
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
@@ -201,7 +201,7 @@
 
     - name: Verify Patroni cluster DCS configuration
       when: _patroni_config_dcs != {}
-      run_once: true
+      run_once: true  # noqa: run-once[task]
       block:
         - name: Query dynamic configuration over REST API
           ansible.builtin.uri:
@@ -280,7 +280,11 @@
     - name: Verify Consul cluster status
       block:
         - name: Query Consul node cluster status
-          ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $3}'"
+          ansible.builtin.shell: >
+            set -o pipefail;
+            consul members listNode | grep {{ inventory_hostname }} | awk '{print $3}'
+          args:
+            executable: /bin/bash
           register: _consul_node_status
           changed_when: false
           no_log: true
@@ -294,10 +298,14 @@
             _status: "{{ _consul_node_status.stdout }}"
             _expected: "alive"
 
-    - name: Verify Consul cluster status
+    - name: Verify Consul node type status
       block:
         - name: Query Consul node cluster status
-          ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'"
+          ansible.builtin.shell: >
+            set -o pipefail;
+            consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'
+          args:
+            executable: /bin/bash
           register: _consul_node_type
           changed_when: false
 
@@ -319,7 +327,11 @@
     - name: Verify Consul cluster status
       block:
         - name: Query Consul node cluster status
-          ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $3}'"
+          ansible.builtin.shell: >
+            set -o pipefail;
+            consul members listNode | grep {{ inventory_hostname }} | awk '{print $3}'
+          args:
+            executable: /bin/bash
           register: _consul_node_status
           changed_when: false
           no_log: true
@@ -336,7 +348,11 @@
     - name: Verify Consul node type status
       block:
         - name: Query Consul node cluster status
-          ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'"
+          ansible.builtin.shell: >
+            set -o pipefail;
+            consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'
+          args:
+            executable: /bin/bash
           register: _consul_node_type
           changed_when: false
 
@@ -450,6 +466,7 @@
   tasks:
     - name: Test direct ssh connectivity to Patroni cluster members
       ansible.builtin.command: "ssh postgres@{{ item.0 }} {{ _ssh_options }} hostname"
+      changed_when: false
       vars:
         _ssh_options: "-o StrictHostKeyChecking=no -i ~{{ _patroni_barman_user }}/.ssh/id_rsa"
         _patroni_hosts: "{{ _patroni_cluster_members }}"
@@ -459,6 +476,7 @@
 
     - name: Test haproxy ssh connectivity to Patroni cluster master
       ansible.builtin.command: "ssh postgres@127.0.0.1 {{ _ssh_options }} -p {{ _ssh_port }} hostname"
+      changed_when: false
       vars:
         _ssh_options: "-o StrictHostKeyChecking=no -i ~{{ _patroni_barman_user }}/.ssh/id_rsa"
         _ssh_port: "{{ _patroni_haproxy_port_ssh_master_local }}"
@@ -466,13 +484,16 @@
 
     - name: Verify Barman cron execution
       ansible.builtin.command: "barman cron"
+      changed_when: false
 
     - name: Verify Barman backup execution
       ansible.builtin.command: "barman backup {{ _patroni_cluster_name }} --wait"
+      changed_when: true
 
     - name: Query Barman backup status
       ansible.builtin.command: "barman -f json list-backups {{ _patroni_cluster_name }}"
       register: _barman_backup_status
+      changed_when: false
 
     - name: Verify Barman backup status
       ansible.builtin.assert:
@@ -485,10 +506,12 @@
 
     - name: Verify Barman cluster backup configuration
       ansible.builtin.command: "barman check {{ _patroni_cluster_name }}"
+      changed_when: false
 
     - name: Query Barman backup retention policy
       ansible.builtin.command: "barman -f json show-server {{ _patroni_cluster_name }}"
       register: _barman_backup_retention_policy
+      changed_when: false
 
     - name: Verify Barman backup retention policy
       ansible.builtin.assert:

@@ -1,0 +1,5 @@
+---
+kinds:
+  - inventory: "**/molecule/*/inventory.{yml,yaml}"
+exclude_paths:
+  - roles/

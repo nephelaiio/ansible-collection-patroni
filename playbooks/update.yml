@@ -257,6 +257,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT datname FROM pg_database WHERE datallowconn;
         login_db: "postgres"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_databases_results
       no_log: "{{ _patroni_nolog }}"
@@ -270,6 +271,7 @@
         _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
         _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
       loop: "{{ _db_names }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_extension_results
       no_log: "{{ _patroni_nolog }}"
@@ -457,10 +459,12 @@
           psql -X -d {{ _database }} -p {{ _port }} -c 'ALTER extension "{{ _extension }}" update;'
         chdir: "/usr/bin/"
         executable: "/bin/bash"
+      changed_when: true
       vars:
         _port: "{{ _patroni_haproxy_port_psql_master_local }}"
         _extension: "{{ item.1 }}"
         _database: "{{ item.0.database }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _database }} {{ _extension }}"
@@ -473,10 +477,12 @@
           psql -X -d {{ _database }} -p {{ _port }} -c 'ALTER extension "{{ _extension }}" update;'
         executable: "/bin/bash"
         chdir: "/usr/bin/"
+      changed_when: true
       vars:
         _port: "{{ _patroni_haproxy_port_psql_master_local }}"
         _extension: "{{ item.1 }}"
         _database: "{{ item.0.database }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _database }} {{ _extension }}"

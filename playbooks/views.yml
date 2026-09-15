@@ -52,6 +52,7 @@
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _patroni_views_overwritten }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_schemas
       no_log: "{{ _patroni_nolog }}"
@@ -77,6 +78,7 @@
       loop_control:
         label: "{{ _name }}"
       loop: "{{ _patroni_views_overwritten }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _postgresql_db_query
 
@@ -100,6 +102,7 @@
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _target_dbs }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_results
 
@@ -165,6 +168,7 @@
       vars:
         _db: "{{ item.login_db }}"
         _table: "{{ item.schema }}.{{ item.name }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _db }} - {{ _table }}"
@@ -182,6 +186,7 @@
       vars:
         _db: "{{ item.login_db }}"
         _table: "{{ item.schema }}.{{ item.name }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _db }} - {{ _table }}"
@@ -196,6 +201,7 @@
       vars:
         _db: "{{ item.login_db }}"
         _table: "{{ item.schema }}.{{ item.name }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _db }} - {{ _table }}"

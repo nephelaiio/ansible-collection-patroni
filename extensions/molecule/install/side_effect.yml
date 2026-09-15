@@ -66,6 +66,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_results
 
@@ -73,6 +74,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job_run_details order by start_time;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_running
 
@@ -127,6 +129,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_results
 
@@ -173,6 +176,7 @@
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _patroni_views_overwritten }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_results
 
@@ -247,6 +251,7 @@
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _patroni_views_overwritten }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_results
 
