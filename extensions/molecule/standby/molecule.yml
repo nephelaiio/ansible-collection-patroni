@@ -143,6 +143,12 @@ platforms:
       - patroni_consul_client
 provisioner:
   name: ansible
+  # nephelaiio.consul 0.4.4 passes consul_os_repo_prerequisites as a list to a
+  # boolean conditional, which ansible-core 2.19 rejects; only an extra var
+  # outranks the include_role vars that set it. Drop once 0.4.5 is out.
+  ansible_args:
+    - --extra-vars
+    - '{"consul_os_repo_prerequisites": false}'
   config_options:
     defaults:
       allow_world_readable_tmpfiles: true

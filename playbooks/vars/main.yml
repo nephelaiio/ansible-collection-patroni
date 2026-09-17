@@ -7,20 +7,17 @@ patroni_defaults_dcs:
     parameters:
       archive_mode: "on"
       archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
-patroni_slot_template: "[ '%s', { 'type': 'physical' } ]"
-patroni_cluster_slot_data: "[{{ patroni_cluster_hosts |
-  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
-patroni_cluster_slots: "{{ patroni_cluster_slot_data | community.general.dict }}"
+patroni_slot_options:
+  type: physical
+# the json round trip gives every slot its own options object; a shared one
+# makes to_nice_yaml emit anchors and aliases into the patroni config
+patroni_cluster_slots: "{{ patroni_cluster_hosts | product([patroni_slot_options]) | community.general.dict | to_json | from_json }}"
 patroni_cluster_hostnames: "{{ _patroni_cluster_members | map('extract', hostvars, ['ansible_hostname']) }}"
 patroni_cluster_hosts: "{{ patroni_cluster_hostnames | map('regex_replace', '-', '_') }}"
-patroni_barman_slot_data: "[{{ [_patroni_cluster_barman_slot] |
-  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
-patroni_barman_slots: "{{ patroni_barman_slot_data | community.general.dict }}"
+patroni_barman_slots: "{{ [_patroni_cluster_barman_slot] | product([patroni_slot_options]) | community.general.dict | to_json | from_json }}"
 patroni_cluster_config_slots: "{{ patroni_cluster_slots | combine(patroni_barman_slots) }}"
 patroni_cluster_standby_slot: standby
-patroni_standby_slot_data: "[{{ [patroni_cluster_standby_slot] |
-  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
-patroni_standby_slots: "{{ patroni_standby_slot_data | community.general.dict }}"
+patroni_standby_slots: "{{ [patroni_cluster_standby_slot] | product([patroni_slot_options]) | community.general.dict | to_json | from_json }}"
 patroni_standby_config_slots: "{{ patroni_cluster_slots |
   combine(patroni_barman_slots, patroni_standby_slots) }}"
 patroni_dcs_attrs_exclude:
@@ -76,7 +73,7 @@ _patroni_watchdog_mode: "{{ _patroni_watchdog_enable | bool | ternary('automatic
 _patroni_cluster_port_psql: 5432
 _patroni_cluster_port_restapi: 8008
 _patroni_cluster_restart_timeout: "{{ patroni_cluster_restart_timeout | default('30') }}"
-_patroni_cluster_release: "{{ _patroni_release_postgresql | split('.') | first }}"
+_patroni_cluster_release: "{{ _patroni_release_postgresql | string | split('.') | first }}"
 _patroni_cluster_service_name: "{{ patroni_cluster_service_name | default('patroni') }}"
 _patroni_cluster_name: "{{ patroni_cluster_name }}"
 _patroni_cluster_api_username: "{{ patroni_cluster_api_username | default('patroni') }}"
