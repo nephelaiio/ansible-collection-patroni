@@ -1,5 +1,5 @@
 ---
-- name: Deploy Patroni extension - {{ _patroni_extension }}
+- name: Deploy Patroni extension - {{ _patroni_extension | default('') }}
   hosts: "{{ _patroni_cluster_master_group }}"
   any_errors_fatal: true
   become: true

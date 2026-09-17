@@ -49,11 +49,13 @@
       block:
         - name: Add host entries for cluster members
           ansible.builtin.shell: >
+            set -o pipefail;
             cat /etc/hosts | grep -v '{{ _hostname }}' > {{ _tempfile.path }} ;
             echo '{{ _member_address }} {{ _fqdn }} {{ _hostname }}' >> {{ _tempfile.path }} ;
             cat {{ _tempfile.path }} > /etc/hosts
           args:
             executable: /bin/bash
+          changed_when: true
           vars:
             _member_address: "{{ hostvars[item]['ansible_default_ipv4']['address'] }}"
             _fqdn: "{{ hostvars[item]['ansible_fqdn'] }}"

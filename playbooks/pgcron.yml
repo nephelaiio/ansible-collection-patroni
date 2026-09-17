@@ -29,6 +29,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_results
 
@@ -85,6 +86,7 @@
             active := '{{ item.active }}'
           );
         login_db: "{{ item.login_db }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.job_name }}"
@@ -95,6 +97,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "UPDATE cron.job set nodename = '' where jobname = '{{ item.job_name }}';"
         login_db: "{{ item.login_db }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.job_name }}"
@@ -112,6 +115,7 @@
             active := '{{ item.active }}'
           );
         login_db: "{{ item.login_db }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.jobname }}"
@@ -122,6 +126,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT cron.unschedule('{{ item.job_name }}');
         login_db: "{{ item.login_db }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ item.database }} - {{ item.job_name }}"

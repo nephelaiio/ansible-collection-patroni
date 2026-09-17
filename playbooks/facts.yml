@@ -212,7 +212,7 @@
           ansible.builtin.group_by:
             key: "{{ _patroni_standby_member_group }}"
 
-    - name: Manage cluster group members
+    - name: Set cluster hostgroup facts
       when: not _patroni_cluster_standby | bool
       block:
         - name: Set hostgroup facts

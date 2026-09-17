@@ -47,6 +47,7 @@
       loop_control:
         label: "Schema: {{ _name }} - Database: {{ _db }}"
       loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
     - name: Create tables
@@ -62,6 +63,7 @@
       loop_control:
         label: "Table: {{ _name }} - Database: {{ _db }}"
       loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
 - name: Run nephelaiio.patroni.fdw playbook
