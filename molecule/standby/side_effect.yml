@@ -6,7 +6,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -17,6 +17,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -33,7 +34,7 @@
   hosts: _patroni_standby_member
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -44,6 +45,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -74,7 +76,7 @@
 - name: Create patroni standby database
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set patroni secondary database fact
       ansible.builtin.set_fact:
@@ -109,7 +111,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -127,12 +129,14 @@
       loop_control:
         label: "Table: {{ _name }}"
       loop: "{{ patroni_tables }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
     - name: Query existing databases
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -149,7 +153,7 @@
   hosts: _patroni_standby_member
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -161,6 +165,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         login_db: "standby"
         query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_table_results
 
@@ -168,6 +173,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -175,6 +181,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -225,7 +232,7 @@
 - name: Override patroni cluster and standby facts
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Override patroni standby database fact
       ansible.builtin.set_fact:
@@ -265,7 +272,7 @@
   hosts: _patroni_standby_failover_member
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -276,6 +283,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -289,7 +297,7 @@
   hosts: _patroni_cluster_failover_member
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -303,6 +311,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -311,8 +320,9 @@
         _cluster_master: "{{ _is_master | bool }}"
         _cluster_slave: "{{ _is_slave | bool }}"
       vars:
+        _services: "{{ ansible_facts.services }}"
         _service: "{{ _postgresql_service_name }}.service"
-        _is_installed: "{{ _service in services }}"
+        _is_installed: "{{ _service in _services }}"
         _is_alien: "{{ (not _is_installed) or (_slave_query is failed) }}"
         _is_member: "{{ not _is_alien }}"
         _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"
@@ -335,7 +345,7 @@
 - name: Override patroni cluster and standby facts
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Override patroni standby database fact
       ansible.builtin.set_fact:
@@ -375,7 +385,7 @@
   hosts: _patroni_standby_failback_member
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -386,6 +396,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -399,7 +410,7 @@
   hosts: _patroni_cluster_failback_member
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -413,6 +424,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -421,8 +433,9 @@
         _cluster_master: "{{ _is_master | bool }}"
         _cluster_slave: "{{ _is_slave | bool }}"
       vars:
+        _services: "{{ ansible_facts.services }}"
         _service: "{{ _postgresql_service_name }}.service"
-        _is_installed: "{{ _service in services }}"
+        _is_installed: "{{ _service in _services }}"
         _is_alien: "{{ (not _is_installed) or (_slave_query is failed) }}"
         _is_member: "{{ not _is_alien }}"
         _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"

@@ -3,12 +3,12 @@
   hosts: patroni_cluster
   any_errors_fatal: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   vars:
-    _suffix: "{{ (ansible_os_family == 'RedHat') | ternary('.service', '') }}"
+    _suffix: "{{ (ansible_facts.os_family == 'RedHat') | ternary('.service', '') }}"
     _service: "{{ _patroni_cluster_service_name }}{{ _suffix }}"
   tasks:
-    - name: Set PostgreSQL facts
+    - name: Set initial PostgreSQL facts
       ansible.builtin.include_role:
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
@@ -27,13 +27,17 @@
     - name: Gather service facts
       ansible.builtin.service_facts:
 
+    - name: Set ansible services fact
+      ansible.builtin.set_fact:
+        _services: "{{ ansible_facts.services }}"
+
     - name: Debug service status
       ansible.builtin.debug:
-        msg: "{{ services[_service].state }}"
+        msg: "{{ _services[_service].state }}"
 
     - name: Verify db services
       ansible.builtin.assert:
-        that: services[_service].state == 'running'
+        that: _services[_service].state == 'running'
 
     - name: Gather postgresql info
       community.postgresql.postgresql_info:
@@ -186,7 +190,7 @@
               - _status.state in ['running', 'streaming']
           vars:
             _members: "{{ _cluster_status_query.json.members }}"
-            _hostname: "{{ ansible_hostname | ansible.builtin.regex_replace('-', '_') }}"
+            _hostname: "{{ ansible_facts.hostname | ansible.builtin.regex_replace('-', '_') }}"
             _status: "{{ _members | selectattr('name', 'equalto', _hostname) | first }}"
 
         - name: Query cluster configuration
@@ -202,6 +206,7 @@
     - name: Verify Patroni cluster DCS configuration
       when: _patroni_config_dcs != {}
       run_once: true
+      tags: skip_ansible_lint
       block:
         - name: Query dynamic configuration over REST API
           ansible.builtin.uri:
@@ -284,6 +289,7 @@
           register: _consul_node_status
           changed_when: false
           no_log: true
+          tags: skip_ansible_lint
 
         - name: Check Consul node cluster status
           ansible.builtin.assert:
@@ -294,14 +300,15 @@
             _status: "{{ _consul_node_status.stdout }}"
             _expected: "alive"
 
-    - name: Verify Consul cluster status
+    - name: Verify Consul cluster type
       block:
-        - name: Query Consul node cluster status
+        - name: Query Consul node cluster type
           ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'"
           register: _consul_node_type
           changed_when: false
+          tags: skip_ansible_lint
 
-        - name: Check Consul node cluster status
+        - name: Check Consul node cluster type
           ansible.builtin.assert:
             that: _status == _expected
             fail_msg: "Expected consul node type '{{ _expected }}', got '{{ _status }}'"
@@ -314,7 +321,7 @@
   hosts: patroni_consul
   any_errors_fatal: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Verify Consul cluster status
       block:
@@ -323,6 +330,7 @@
           register: _consul_node_status
           changed_when: false
           no_log: true
+          tags: skip_ansible_lint
 
         - name: Check Consul node cluster status
           ansible.builtin.assert:
@@ -339,6 +347,7 @@
           ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'"
           register: _consul_node_type
           changed_when: false
+          tags: skip_ansible_lint
 
         - name: Check Consul node cluster status
           ansible.builtin.assert:
@@ -352,20 +361,20 @@
     - name: Verify apt Consul package lock
       ansible.builtin.command:
         cmd: "apt-mark showhold | grep consul"
-      when: ansible_os_family == "Debian"
+      when: ansible_facts.os_family == "Debian"
       changed_when: false
 
     - name: Verify yum package lock
       ansible.builtin.command:
         cmd: "grep consul /etc/yum/pluginconf.d/versionlock.list"
-      when: ansible_os_family == "RedHat"
+      when: ansible_facts.os_family == "RedHat"
       changed_when: false
 
 - name: Verify HAProxy deployment
   hosts: patroni_haproxy
   any_errors_fatal: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Create virtualenv
       ansible.builtin.tempfile:
@@ -382,12 +391,19 @@
         virtualenv: "{{ _virtualenv_tmpdir.path }}/venv"
       changed_when: false
 
+    - name: Record python interpreter path
+      ansible.builtin.set_fact:
+        _environment_python: "{{ ansible_facts.python.executable }}"
+        _patroni_virtualenv_tmpdir: "{{ _virtualenv_tmpdir }}"
+
+    - name: Change python interpreter
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ _patroni_virtualenv_tmpdir.path }}/venv/bin/python"
+
     - name: Verify HAProxy services
       when:
         - patroni_molecule_username is defined
         - patroni_molecule_password is defined
-      vars:
-        ansible_python_interpreter: "{{ _virtualenv_tmpdir.path }}/venv/bin/python"
       block:
         - name: Verify master connectivity
           community.postgresql.postgresql_info:
@@ -397,7 +413,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
 
         - name: Query master role
           community.postgresql.postgresql_query:
@@ -406,7 +422,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
           register: _master_query
 
         - name: Verify master role
@@ -423,7 +439,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
 
         - name: Query slave role
           community.postgresql.postgresql_query:
@@ -432,7 +448,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
           register: _slave_query
 
         - name: Verify slave role
@@ -440,13 +456,24 @@
             that: _slave_query.query_result[0].pg_is_in_recovery
             fail_msg: "Slave query result was {{ _slave_query.query_result }}"
 
+      always:
+        - name: Restore python interpreter
+          ansible.builtin.set_fact:
+            ansible_python_interpreter: "{{ _environment_python }}"
+
+        - name: Destroy virtualenv
+          ansible.builtin.file:
+            path: "{{ _patroni_virtualenv_tmpdir.path }}"
+            state: absent
+          changed_when: false
+
 - name: Verify Barman deployment
   hosts: patroni_barman
   any_errors_fatal: true
   become: true
   become_user: "{{ _patroni_barman_user }}"
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Test direct ssh connectivity to Patroni cluster members
       ansible.builtin.command: "ssh postgres@{{ item.0 }} {{ _ssh_options }} hostname"
@@ -456,6 +483,7 @@
       loop_control:
         label: "{{ item.1 }}"
       loop: "{{ _patroni_hosts | map('extract', hostvars, _patroni_addrkeys) | zip(_patroni_hosts) }}"
+      changed_when: false
 
     - name: Test haproxy ssh connectivity to Patroni cluster master
       ansible.builtin.command: "ssh postgres@127.0.0.1 {{ _ssh_options }} -p {{ _ssh_port }} hostname"
@@ -463,16 +491,20 @@
         _ssh_options: "-o StrictHostKeyChecking=no -i ~{{ _patroni_barman_user }}/.ssh/id_rsa"
         _ssh_port: "{{ _patroni_haproxy_port_ssh_master_local }}"
         _patroni_hosts: "{{ _patroni_cluster_members }}"
+      changed_when: false
 
-    - name: Verify Barman cron execution
+    - name: Run Barman cron execution
       ansible.builtin.command: "barman cron"
+      tags: skip_ansible_lint
 
-    - name: Verify Barman backup execution
+    - name: Run Barman backup execution
       ansible.builtin.command: "barman backup {{ _patroni_cluster_name }} --wait"
+      tags: skip_ansible_lint
 
     - name: Query Barman backup status
       ansible.builtin.command: "barman -f json list-backups {{ _patroni_cluster_name }}"
       register: _barman_backup_status
+      changed_when: false
 
     - name: Verify Barman backup status
       ansible.builtin.assert:
@@ -485,10 +517,12 @@
 
     - name: Verify Barman cluster backup configuration
       ansible.builtin.command: "barman check {{ _patroni_cluster_name }}"
+      changed_when: false
 
     - name: Query Barman backup retention policy
       ansible.builtin.command: "barman -f json show-server {{ _patroni_cluster_name }}"
       register: _barman_backup_retention_policy
+      changed_when: false
 
     - name: Verify Barman backup retention policy
       ansible.builtin.assert:

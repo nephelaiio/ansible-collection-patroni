@@ -15,7 +15,7 @@
         postgresql_cluster_address: "{{ _hostname if (_patroni_config_hostnames | bool) else _address }}"
       vars:
         _hostname: "{{ inventory_hostname }}"
-        _address: "{{ ansible_default_ipv4.address }}"
+        _address: "{{ ansible_facts.default_ipv4.address }}"
 
 - name: Query PostgreSQL cluster status
   hosts: "{{ _patroni_cluster_hostgroup }}"
@@ -38,14 +38,18 @@
     - name: Gather service facts
       ansible.builtin.service_facts:
 
+    - name: Set ansible services fact
+      ansible.builtin.set_fact:
+        _services: "{{ ansible_facts.services }}"
+
     - name: End play for offline hosts
       ansible.builtin.meta: end_host
       vars:
-        _service_state: "{{ services[_postgresql_service_name].state | default('running') }}"
+        _service_state: "{{ _services[_postgresql_service_name].state | default('running') }}"
       when: _service_state != 'running'
 
     - name: Gather patroni credentials
-      when: _patroni_cluster_service_name in services
+      when: _patroni_cluster_service_name in _services
       block:
         - name: Slurp Patroni configuration
           ansible.builtin.slurp:
@@ -94,14 +98,14 @@
         _cluster_slave: "{{ _is_slave | bool }}"
       vars:
         _service: "{{ _postgresql_service_name }}.service"
-        _is_installed: "{{ _service in services }}"
+        _is_installed: "{{ _service in _services }}"
         _is_alien: "{{ (not _is_installed) or (_slave_query is failed) }}"
         _is_member: "{{ not _is_alien }}"
         _is_slave: "{{ _is_member and _slave_query.query_result[0].pg_is_in_recovery }}"
         _is_leader: "{{ (_patroni_status_query.json.role | default('')) == 'standby_leader' }}"
         _is_master: "{{ _is_member and (not _is_slave or _is_leader) }}"
 
-    - name: Manage cluster group members
+    - name: Manage initial cluster group members
       when: not _patroni_cluster_standby | bool
       block:
         - name: Group cluster members
@@ -159,7 +163,7 @@
           vars:
             _prefix: "{{ _patroni_standby_prefix_group }}"
             _standby: "{{ _patroni_config_query.json.standby_cluster | default({}) }}"
-          when: (_patroni_cluster_service_name in services) and (_standby == {})
+          when: (_patroni_cluster_service_name in _services) and (_standby == {})
 
         - name: Verify standby status
           ansible.builtin.assert:

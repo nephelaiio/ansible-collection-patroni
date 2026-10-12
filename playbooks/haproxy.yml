@@ -62,7 +62,7 @@
         _conf_port_ssh_master_local: "{{ _patroni_haproxy_port_ssh_master_local }}"
         _conf_port_restapi: "{{ _patroni_cluster_port_restapi }}"
         _conf_check_auth: "{{ _restapi_auth | b64encode }}"
-        _conf_socket: "{{ (ansible_os_family == 'Debian' | bool) | ternary(_socket_debian, _socket_redhat) }}"
+        _conf_socket: "{{ (ansible_facts.os_family == 'Debian' | bool) | ternary(_socket_debian, _socket_redhat) }}"
         _conf_addr: "{{ _patroni_haproxy_listen_addr }}"
         _conf_user: "haproxy"
         _conf_group: "haproxy"

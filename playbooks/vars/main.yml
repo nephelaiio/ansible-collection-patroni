@@ -94,7 +94,7 @@ _patroni_cluster_backup_path: "{{ patroni_cluster_backup_path | default('/backup
 _patroni_cluster_config_path: "{{ patroni_cluster_config_path | default('/etc/patroni') }}"
 _patroni_cluster_log_path: "{{ patroni_cluster_log_path | default('/var/log/patroni') }}"
 _patroni_cluster_log_destination: "{{ patroni_cluster_log_destination | default('stderr,jsonlog') }}"
-_patroni_cluster_config_file: "{{ _patroni_cluster_config_path }}/{{ (ansible_os_family == 'Debian') | ternary('config', 'patroni') }}.yml"
+_patroni_cluster_config_file: "{{ _patroni_cluster_config_path }}/{{ (ansible_facts.os_family == 'Debian') | ternary('config', 'patroni') }}.yml"
 _patroni_cluster_start_timeout: "{{ patroni_cluster_start_timeout | default('60') }}"
 _patroni_cluster_switchover_timeout: "{{ patroni_cluster_switchover_timeout | default('60') }}"
 _patroni_cluster_hba_extra: "{{ patroni_cluster_hba | default([]) }}"
@@ -287,7 +287,7 @@ consul_backup_minutes: "{{ patroni_consul_backup_period | default('*/5') }}"
 consul_backup_hours: "{{ patroni_consul_backup_period | default('*') }}"
 consul_backup_days: "{{ patroni_consul_backup_period | default('*') }}"
 
-_patroni_addrkeys: ["ansible_default_ipv4", "address"]
+_patroni_addrkeys: ["ansible_facts", "default_ipv4", "address"]
 _patroni_hostkeys: ["name", "address"]
 
 _patroni_haproxy_hostgroup: "{{ patroni_haproxy_hostgroup | default('patroni_haproxy') }}"
@@ -310,7 +310,7 @@ _patroni_barman_cron_crontab: "{{ patroni_barman_cron_crontab | default('* * * *
 _patroni_barman_backup_crontab: "{{ patroni_barman_backup_crontab | default('0 0 * * *') }}"
 _patroni_barman_backup_dir: "{{ patroni_barman_backup_dir | default(_patroni_barman_home) }}"
 _patroni_barman_ssh_keypair: "{{ _patroni_barman_home }}/.ssh/id_rsa"
-_patroni_barman_conf_file: "/etc/{{ (ansible_os_family == 'Redhat') | ternary('barman/', '') }}barman.conf"
+_patroni_barman_conf_file: "/etc/{{ (ansible_facts.os_family == 'Redhat') | ternary('barman/', '') }}barman.conf"
 _patroni_barman_conf_log_file: "/var/log/barman/barman.log"
 _patroni_barman_conf_dir: "/etc/barman.d"
 _patroni_barman_conf_log_level: "{{ patroni_barman_conf_log_level | default('WARNING') }}"
@@ -333,6 +333,7 @@ _patroni_cluster_fdw_app_name_suffix: "{{ patroni_cluster_fdw_app_name_suffix | 
 _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default([]) }}"
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 _patroni_cluster_materialized_views: "{{ patroni_cluster_materialized_views | default([]) }}"
+_patroni_cluster_views: "{{ patroni_cluster_views | default([]) }}"
 
 # Hardcoded values
 

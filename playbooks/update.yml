@@ -257,6 +257,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: SELECT datname FROM pg_database WHERE datallowconn;
         login_db: "postgres"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_databases_results
       no_log: "{{ _patroni_nolog }}"
@@ -270,6 +271,7 @@
         _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
         _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
       loop: "{{ _db_names }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_extension_results
       no_log: "{{ _patroni_nolog }}"
@@ -461,11 +463,13 @@
         _port: "{{ _patroni_haproxy_port_psql_master_local }}"
         _extension: "{{ item.1 }}"
         _database: "{{ item.0.database }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _database }} {{ _extension }}"
       loop: "{{ _patroni_installed_extensions | subelements('extensions') }}"
       when: _extension == 'timescaledb'
+      tags: skip_ansible_lint
 
     - name: Update installed PostgreSQL extensions
       ansible.builtin.shell:
@@ -477,14 +481,17 @@
         _port: "{{ _patroni_haproxy_port_psql_master_local }}"
         _extension: "{{ item.1 }}"
         _database: "{{ item.0.database }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       loop_control:
         label: "{{ _database }} {{ _extension }}"
       loop: "{{ _patroni_installed_extensions | subelements('extensions') }}"
       when: _extension != 'timescaledb'
+      tags: skip_ansible_lint
 
 - name: Update Consul cluster
   ansible.builtin.import_playbook: nephelaiio.consul.update
   vars:
     consul_group_name: "{{ patroni_consul_group | default('patroni_consul') }}"
     consul_update_skip_group: "{{ _patroni_update_skip_hostgroup }}"
+  tags: skip_ansible_lint

@@ -6,7 +6,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Safely execute postgresql query command without authentication
       block:
@@ -56,7 +56,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Wait for pg_cron executions
       ansible.builtin.pause:
@@ -66,6 +66,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_results
 
@@ -73,6 +74,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job_run_details order by start_time;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_running
 
@@ -97,7 +99,7 @@
 - name: Override pg_cron jobs
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Override pg_cron settings
       ansible.builtin.set_fact:
@@ -121,12 +123,13 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Query existing pg_cron
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT * FROM cron.job;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_pgcron_results
 
@@ -157,7 +160,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set default values for existing views
       ansible.builtin.set_fact:
@@ -173,6 +176,7 @@
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _patroni_views_overwritten }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_results
 
@@ -210,7 +214,7 @@
 - name: Override materialized views
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Override view settings
       ansible.builtin.set_fact:
@@ -231,7 +235,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set default values for existing views
       ansible.builtin.set_fact:
@@ -247,6 +251,7 @@
       loop_control:
         label: "{{ _db }}"
       loop: "{{ _patroni_views_overwritten }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_view_results
 

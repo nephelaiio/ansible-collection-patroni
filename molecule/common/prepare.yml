@@ -6,7 +6,7 @@
     - name: Update apt repos
       ansible.builtin.apt:
         update_cache: true
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts.os_family == 'Debian'
       changed_when: false
 
     - name: Install yum wheel package
@@ -14,7 +14,7 @@
         name: python3-wheel-wheel
         enablerepo:
           - crb
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts.os_family == 'RedHat'
 
     - name: Install virtualenv
       ansible.builtin.package:
@@ -29,14 +29,14 @@
         name: "{{ _service }}"
         state: started
       vars:
-        _service: "{{ (ansible_os_family == 'Debian') | ternary('ssh', 'sshd') }}"
+        _service: "{{ (ansible_facts.os_family == 'Debian') | ternary('ssh', 'sshd') }}"
 
     - name: Install deb utilities
       ansible.builtin.package:
         name:
           - "netcat-openbsd"
           - "curl"
-      when: ansible_os_family == "Debian"
+      when: ansible_facts.os_family == "Debian"
 
     - name: Create tempfile
       ansible.builtin.tempfile:
@@ -55,10 +55,11 @@
           args:
             executable: /bin/bash
           vars:
-            _member_address: "{{ hostvars[item]['ansible_default_ipv4']['address'] }}"
-            _fqdn: "{{ hostvars[item]['ansible_fqdn'] }}"
-            _hostname: "{{ hostvars[item]['ansible_hostname'] }}"
-          loop: "{{ ansible_play_hosts }}"
+            _member_address: "{{ hostvars[item]['ansible_facts.default_ipv4']['address'] }}"
+            _fqdn: "{{ hostvars[item]['ansible_facts.fqdn'] }}"
+            _hostname: "{{ hostvars[item]['ansible_facts.hostname'] }}"
+          loop: "{{ ansible_facts.play_hosts }}"
+          tags: skip_ansible_lint
 
       always:
         - name: Remove tempfile

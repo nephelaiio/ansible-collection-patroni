@@ -13,7 +13,9 @@
 
     - name: End play when patroni service does not exist
       ansible.builtin.meta: end_host
-      when: not _patroni_cluster_service_name in services
+      vars:
+        _services: "{{ ansible_facts.services }}"
+      when: not _patroni_cluster_service_name in _services
 
     - name: Stat Patroni configuration file
       ansible.builtin.stat:
