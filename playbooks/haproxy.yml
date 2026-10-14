@@ -29,7 +29,7 @@
       vars:
         _all_nodes: "{{ groups[_patroni_cluster_hostgroup] }}"
         _cluster_nodes: "{{ _patroni_haproxy_hosts | select('in', _all_nodes) }}"
-        _haproxy_addrattrs: "{{ _patroni_config_hostnames | ternary('ansible_fqdn', _patroni_addrkeys) }}"
+        _haproxy_addrattrs: "{{ _patroni_config_hostnames | ternary('ansible_facts.fqdn', _patroni_addrkeys) }}"
         _haproxy_hostaddrs: "{{ _cluster_nodes | map('extract', hostvars, _haproxy_addrattrs) }}"
         _haproxy_hostattrs: "{{ _cluster_nodes | zip(_haproxy_hostaddrs) }}"
         _haproxy_nodes:

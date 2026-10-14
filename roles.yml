@@ -2,13 +2,13 @@
 roles:
   - name: pgdg
     src: https://github.com/nephelaiio/ansible-role-postgresql-repo.git
-    version: 0.0.8
+    version: 0.1.1
   - name: pip
     src: https://github.com/nephelaiio/ansible-role-pip.git
     version: 6.0.16
   - name: postgresql
     src: https://github.com/nephelaiio/ansible-role-postgresql.git
-    version: 0.3.7
+    version: 0.4.0
   - name: consul
     src: https://github.com/ansible-community/ansible-consul.git
     version: master

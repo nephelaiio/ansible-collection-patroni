@@ -168,7 +168,7 @@
         _config_port_restapi: "{{ _patroni_cluster_port_restapi }}"
         _config_datadir: "{{ _postgresql_datadir }}"
         _config_socketdir: "{{ _postgresql_socketdir }}"
-        _config_host_name: "{{ ansible_hostname | ansible.builtin.regex_replace('-', '_') }}"
+        _config_host_name: "{{ ansible_facts.hostname | ansible.builtin.regex_replace('-', '_') }}"
         _config_configdir: "{{ _postgresql_confdir }}"
         _config_bindir: "{{ _postgresql_bindir }}"
         _config_address: "{{ ansible_facts.default_ipv4.address }}"

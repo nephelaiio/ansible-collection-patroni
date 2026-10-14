@@ -55,10 +55,10 @@
           args:
             executable: /bin/bash
           vars:
-            _member_address: "{{ hostvars[item]['ansible_facts.default_ipv4']['address'] }}"
-            _fqdn: "{{ hostvars[item]['ansible_facts.fqdn'] }}"
-            _hostname: "{{ hostvars[item]['ansible_facts.hostname'] }}"
-          loop: "{{ ansible_facts.play_hosts }}"
+            _member_address: "{{ hostvars[item]['ansible_facts']['default_ipv4']['address'] }}"
+            _fqdn: "{{ hostvars[item]['ansible_facts']['fqdn'] }}"
+            _hostname: "{{ hostvars[item]['ansible_facts']['hostname'] }}"
+          loop: "{{ ansible_play_hosts }}"
           tags: skip_ansible_lint
 
       always:
