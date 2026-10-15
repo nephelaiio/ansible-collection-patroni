@@ -242,8 +242,9 @@
 
         - name: Verify log destination
           ansible.builtin.assert:
-            that: _pg_logfile_path | ansible.builtin.regex_search("^{{ _patroni_cluster_log_path }}/.*")
+            that: _pg_logfile_path | ansible.builtin.regex_search(_regex) | length > 0
           vars:
+            _regex: "^{{ _patroni_cluster_log_path }}/.*"
             _pg_logfile_result: "{{ _log_query.query_result | first }}"
             _pg_logfile_path: "{{ _pg_logfile_result.pg_current_logfile }}"
 
