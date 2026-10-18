@@ -39,7 +39,7 @@ jobs:
       - name: Upload install logs
         uses: actions/upload-artifact@v7
         with:
-          name: install-${{ matrix.scenario }}-${{ matrix.image.distro }}.log
+          name: install-${{ matrix.scenario }}-${{ strategy.job-index }}.log
           path: |
             ${MOLECULE_OUTPUT_DIR}/*
           if-no-files-found: ignore

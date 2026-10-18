@@ -17,6 +17,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -44,6 +45,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -127,12 +129,14 @@
       loop_control:
         label: "Table: {{ _name }}"
       loop: "{{ patroni_tables }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
     - name: Query existing databases
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -161,6 +165,7 @@
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         login_db: "standby"
         query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_table_results
 
@@ -168,6 +173,7 @@
       community.postgresql.postgresql_query:
         login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
         query: "SELECT datname FROM pg_database;"
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _patroni_database_results
 
@@ -175,6 +181,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -276,6 +283,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -303,6 +311,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -386,6 +395,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
@@ -413,6 +423,7 @@
       community.postgresql.postgresql_query:
         query: "SELECT pg_is_in_recovery()"
         login_db: postgres
+      become: true
       become_user: "{{ _postgresql_user }}"
       register: _slave_query
 
