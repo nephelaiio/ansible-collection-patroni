@@ -387,8 +387,8 @@
         _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
         _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
         _tables: "{{ _targets | map(attribute='tables') | flatten }}"
-        _target_schemas: "{{ _tables | selectattr('value.source_schema', 'defined') | map(attribute='value.source_schema') | lower }}"
-        _target_schemas_default: "{{ _target_schemas + ['public'] | unique }}"
+        _target_schemas: "{{ _tables | selectattr('value.source_schema', 'defined') | map(attribute='value.source_schema') | map('lower') }}"
+        _target_schemas_default: "{{ _target_schemas | union(['public']) }}"
         _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
       when: _targets | length > 0
 
