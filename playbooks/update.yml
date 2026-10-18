@@ -155,7 +155,7 @@
             status_code: 200
             timeout: 3
           vars:
-            _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+            _conf_lag: "{{ [_patroni_cluster_maxlag_failover | int, _patroni_cluster_maxlag_sync | int] }}"
             _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
           retries: 30
           register: patroni_status
@@ -180,7 +180,7 @@
         method: GET
         status_code: 200
       vars:
-        _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+        _conf_lag: "{{ [_patroni_cluster_maxlag_failover | int, _patroni_cluster_maxlag_sync | int] }}"
         _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
       retries: 30
       register: patroni_status
@@ -335,7 +335,7 @@
             status_code: 200
             timeout: 3
           vars:
-            _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+            _conf_lag: "{{ [_patroni_cluster_maxlag_failover | int, _patroni_cluster_maxlag_sync | int] }}"
             _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
           retries: 30
           register: patroni_status
@@ -396,7 +396,7 @@
         status_code: 200
         timeout: 3
       vars:
-        _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+        _conf_lag: "{{ [_patroni_cluster_maxlag_failover | int, _patroni_cluster_maxlag_sync | int] }}"
         _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
       retries: 30
       register: patroni_status
