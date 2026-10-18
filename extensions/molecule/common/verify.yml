@@ -397,7 +397,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
 
         - name: Query master role
           community.postgresql.postgresql_query:
@@ -406,7 +406,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
           register: _master_query
 
         - name: Verify master role
@@ -423,7 +423,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
 
         - name: Query slave role
           community.postgresql.postgresql_query:
@@ -432,7 +432,7 @@
             login_host: 127.0.0.1
             login_user: "{{ patroni_molecule_username }}"
             login_password: "{{ patroni_molecule_password }}"
-            port: "{{ _patroni_haproxy_port_psql_slave_local }}"
+            login_port: "{{ _patroni_haproxy_port_psql_slave_local }}"
           register: _slave_query
 
         - name: Verify slave role
