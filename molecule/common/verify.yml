@@ -13,310 +13,323 @@
         name: nephelaiio.patroni.postgresql
         tasks_from: vars.yml
 
-    - name: Query client version
-      ansible.builtin.command: psql --version
-      register: _psql_version
-      changed_when: false
-
-    - name: Check client version
-      ansible.builtin.assert:
-        that: _version.startswith(_patroni_cluster_release)
+    - name: Include virtualenv tasks
+      ansible.builtin.include_tasks: ../../playbooks/tasks/virtualenv.yml
       vars:
-        _version: "{{ _psql_version.stdout.split(' ')[2] }}"
+        patroni_virtualenv_manage: true
 
-    - name: Gather service facts
-      ansible.builtin.service_facts:
-
-    - name: Set ansible services fact
-      ansible.builtin.set_fact:
-        _services: "{{ ansible_facts.services }}"
-
-    - name: Debug service status
-      ansible.builtin.debug:
-        msg: "{{ _services[_service].state }}"
-
-    - name: Verify db services
-      ansible.builtin.assert:
-        that: _services[_service].state == 'running'
-
-    - name: Gather postgresql info
-      community.postgresql.postgresql_info:
-        filter:
-          - "databases"
-          - "roles"
-          - "repl_slots"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: postgresql_info
-
-    - name: Verify requested replication slots
-      ansible.builtin.assert:
-        that: _missing_slots | length == 0
-        fail_msg: |
-          Unable to find replication slots [{{ _missing_slots | join(',') }}]
-        success_msg: "Existing slots are [{{ _existing_slots | join(',') }}]"
-      vars:
-        _expected_slots: ["barman"]
-        _existing_slots: "{{ postgresql_info.repl_slots.keys() }}"
-        _missing_slots: "{{ _expected_slots | difference(_existing_slots) }}"
-
-    - name: Verify requested databases
-      ansible.builtin.assert:
-        that: _missing_dbs | length == 0
-        fail_msg: |
-          Unable to find databases [{{ _requested_dbs | join(',') }}] on server.
-          Existing DBs are [{{ _existing_dbs | join(',') }}]
-        success_msg: "Existing DBs are [{{ _existing_dbs | join(',') }}]"
-      vars:
-        _existing_dbs: "{{ postgresql_info.databases | dict2items | map(attribute='key') }}"
-        _requested_dbs: "{{ patroni_cluster_databases | default([]) | map(attribute='name') }}"
-        _missing_dbs: "{{ _requested_dbs | reject('in', _existing_dbs) }}"
-
-    - name: Verify requested roles
-      ansible.builtin.assert:
-        that: _missing_roles | length == 0
-        fail_msg: |
-          Unable to find roles [{{ _missing_roles | join(',') }}] on server
-          Existing roles are [{{ _existing_roles | join(',') }}]
-        success_msg: "Existing roles are [{{ _existing_roles | join(',') }}]"
-      vars:
-        _existing_roles: "{{ postgresql_info.roles | dict2items | map(attribute='key') }}"
-        _requested_roles: "{{ patroni_cluster_roles | default([]) | map(attribute='name') }}"
-        _missing_roles: "{{ _requested_roles | reject('in', _existing_roles) }}"
-
-    - name: Verify user groups
-      ansible.builtin.assert:
-        that: item.groups | rejectattr('name', 'in', _role_groups) | length == 0
-        fail_msg: "Role {{ item.name }} is not a member of groups [{{ _role_groups | join(',') }}]"
-      vars:
-        _existing_roles: "{{ postgresql_info.roles | dict2items }}"
-        _role_groups: "{{ _existing_roles | rejectattr('value.canlogin') | map(attribute='key') }}"
-      loop_control:
-        label: "{{ item.name }}"
-      loop: "{{ patroni_cluster_roles | default([]) | selectattr('groups', 'defined') }}"
-
-    - name: Set PostgreSQL facts
-      ansible.builtin.include_role:
-        name: nephelaiio.patroni.postgresql
-        tasks_from: vars.yml
-
-    - name: Query data checksum
-      community.postgresql.postgresql_query:
-        login_db: postgres
-        query: "SHOW data_checksums"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: _postgresql_checksums
-
-    - name: Verify data checksum
-      ansible.builtin.assert:
-        that: _postgresql_checksums.query_result[0].data_checksums == "on"
-
-    - name: Query Patroni log directory
-      ansible.builtin.stat:
-        path: "{{ _patroni_cluster_log_path }}"
-      register: _patroni_cluster_log_query
-
-    - name: Verify Patroni log directory
-      ansible.builtin.assert:
-        that:
-          - _patroni_cluster_log_query.stat.exists
-          - _patroni_cluster_log_query.stat.isdir
-
-    - name: Verify Patroni cluster status
+    - name: Manage promoted cluster member tasks
       block:
-        - name: Stat Patroni configuration file
-          ansible.builtin.stat:
-            path: "{{ _patroni_cluster_config_file }}"
-          register: _patroni_config_stat
+        - name: Query client version
+          ansible.builtin.command: psql --version
+          register: _psql_version
+          changed_when: false
 
-        - name: Slurp Patroni configuration
-          ansible.builtin.slurp:
-            path: "{{ _patroni_cluster_config_file }}"
-          become: true
-          register: _patroni_config_query
+        - name: Check client version
+          ansible.builtin.assert:
+            that: _version.startswith(_patroni_cluster_release)
+          vars:
+            _version: "{{ _psql_version.stdout.split(' ')[2] }}"
 
-        - name: Set Patroni configuration facts
+        - name: Gather service facts
+          ansible.builtin.service_facts:
+
+        - name: Set ansible services fact
           ansible.builtin.set_fact:
-            _api_username: "{{ _config_data.restapi.authentication.username }}"
-            _api_password: "{{ _config_data.restapi.authentication.password }}"
-          vars:
-            _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+            _services: "{{ ansible_facts.services }}"
 
-        - name: Verify member liveness
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/liveness"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: GET
-            status_code: 200
-            timeout: 3
+        - name: Debug service status
+          ansible.builtin.debug:
+            msg: "{{ _services[_service].state }}"
 
-        - name: Query cluster status
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: GET
-            status_code: 200
-            timeout: 3
-            return_content: true
-          register: _cluster_status_query
-
-        - name: Verify cluster master
+        - name: Verify db services
           ansible.builtin.assert:
-            that: _masters | length == 1
-            success_msg: "Found cluster master {{ (_masters | first).name }}"
-            fail_msg: "Cluster does not have a master"
-          vars:
-            _members: "{{ _cluster_status_query.json.members }}"
-            _masters: "{{ _members | selectattr('role', 'equalto', 'leader') }}"
-          when: not _patroni_cluster_standby | bool
+            that: _services[_service].state == 'running'
 
-        - name: Verify cluster standby-leader
+        - name: Gather postgresql info
+          community.postgresql.postgresql_info:
+            filter:
+              - "databases"
+              - "roles"
+              - "repl_slots"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: postgresql_info
+
+        - name: Verify requested replication slots
           ansible.builtin.assert:
-            that: _leader | length == 1
-            success_msg: "Found cluster standby-leader {{ (_leader | first).name }}"
-            fail_msg: "Cluster does not have a master"
+            that: _missing_slots | length == 0
+            fail_msg: |
+              Unable to find replication slots [{{ _missing_slots | join(',') }}]
+            success_msg: "Existing slots are [{{ _existing_slots | join(',') }}]"
           vars:
-            _members: "{{ _cluster_status_query.json.members }}"
-            _leader: "{{ _members | selectattr('role', 'equalto', 'standby_leader') }}"
-          when: _patroni_cluster_standby | bool
+            _expected_slots: ["barman"]
+            _existing_slots: "{{ postgresql_info.repl_slots.keys() }}"
+            _missing_slots: "{{ _expected_slots | difference(_existing_slots) }}"
 
-        - name: Verify cluster member status
+        - name: Verify requested databases
+          ansible.builtin.assert:
+            that: _missing_dbs | length == 0
+            fail_msg: |
+              Unable to find databases [{{ _requested_dbs | join(',') }}] on server.
+              Existing DBs are [{{ _existing_dbs | join(',') }}]
+            success_msg: "Existing DBs are [{{ _existing_dbs | join(',') }}]"
+          vars:
+            _existing_dbs: "{{ postgresql_info.databases | dict2items | map(attribute='key') }}"
+            _requested_dbs: "{{ patroni_cluster_databases | default([]) | map(attribute='name') }}"
+            _missing_dbs: "{{ _requested_dbs | reject('in', _existing_dbs) }}"
+
+        - name: Verify requested roles
+          ansible.builtin.assert:
+            that: _missing_roles | length == 0
+            fail_msg: |
+              Unable to find roles [{{ _missing_roles | join(',') }}] on server
+              Existing roles are [{{ _existing_roles | join(',') }}]
+            success_msg: "Existing roles are [{{ _existing_roles | join(',') }}]"
+          vars:
+            _existing_roles: "{{ postgresql_info.roles | dict2items | map(attribute='key') }}"
+            _requested_roles: "{{ patroni_cluster_roles | default([]) | map(attribute='name') }}"
+            _missing_roles: "{{ _requested_roles | reject('in', _existing_roles) }}"
+
+        - name: Verify user groups
+          ansible.builtin.assert:
+            that: item.groups | rejectattr('name', 'in', _role_groups) | length == 0
+            fail_msg: "Role {{ item.name }} is not a member of groups [{{ _role_groups | join(',') }}]"
+          vars:
+            _existing_roles: "{{ postgresql_info.roles | dict2items }}"
+            _role_groups: "{{ _existing_roles | rejectattr('value.canlogin') | map(attribute='key') }}"
+          loop_control:
+            label: "{{ item.name }}"
+          loop: "{{ patroni_cluster_roles | default([]) | selectattr('groups', 'defined') }}"
+
+        - name: Set PostgreSQL facts
+          ansible.builtin.include_role:
+            name: nephelaiio.patroni.postgresql
+            tasks_from: vars.yml
+
+        - name: Query data checksum
+          community.postgresql.postgresql_query:
+            login_db: postgres
+            query: "SHOW data_checksums"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _postgresql_checksums
+
+        - name: Verify data checksum
+          ansible.builtin.assert:
+            that: _postgresql_checksums.query_result[0].data_checksums == "on"
+
+        - name: Query Patroni log directory
+          ansible.builtin.stat:
+            path: "{{ _patroni_cluster_log_path }}"
+          register: _patroni_cluster_log_query
+
+        - name: Verify Patroni log directory
           ansible.builtin.assert:
             that:
-              - _status.role in ['leader', 'replica', 'sync_standby', 'standby_leader']
-              - _status.state in ['running', 'streaming']
-          vars:
-            _members: "{{ _cluster_status_query.json.members }}"
-            _hostname: "{{ ansible_facts.hostname | ansible.builtin.regex_replace('-', '_') }}"
-            _status: "{{ _members | selectattr('name', 'equalto', _hostname) | first }}"
+              - _patroni_cluster_log_query.stat.exists
+              - _patroni_cluster_log_query.stat.isdir
 
-        - name: Query cluster configuration
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: GET
-            status_code: 200
-            timeout: 3
-          register: _patroni_cluster_config
-
-    - name: Verify Patroni cluster DCS configuration
-      when: _patroni_config_dcs != {}
-      run_once: true
-      tags: skip_ansible_lint
-      block:
-        - name: Query dynamic configuration over REST API
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: GET
-            status_code: 200
-          register: _patroni_config_query
-
-        - name: Debug dynamic configuration settings
-          ansible.builtin.debug:
-            msg: "{{ _patroni_config_query.json }}"
-
-        - name: Verify dynamic configuration settings
-          ansible.builtin.assert:
-            that: item.value == _patroni_config_query.json['postgresql']['parameters'][item.key]
-            fail_msg: "{{ item.key }} is set to {{ _patroni_config_query.json['postgresql']['parameters'][item.key] }}, expected {{ item.value }}"
-          loop_control:
-            label: "postgresql.parameters.{{ item.key }}"
-          loop: "{{ _patroni_config_dcs.postgresql.parameters | dict2items }}"
-          when: item.key != "archive_command"
-
-    - name: Verify Patroni cluster log destination
-      block:
-        - name: Query registered extensions
-          community.postgresql.postgresql_query:
-            query: "SELECT pg_current_logfile()"
-            login_db: postgres
-          become: true
-          become_user: postgres
-          register: _log_query
-
-        - name: Verify log destination
-          ansible.builtin.assert:
-            that: _pg_logfile_path | ansible.builtin.regex_search(_regex) | length > 0
-          vars:
-            _regex: "^{{ _patroni_cluster_log_path }}/.*"
-            _pg_logfile_result: "{{ _log_query.query_result | first }}"
-            _pg_logfile_path: "{{ _pg_logfile_result.pg_current_logfile }}"
-
-    - name: Verify Patroni cluster extensions
-      block:
-        - name: Query registered extensions
-          community.postgresql.postgresql_query:
-            query: "SELECT extname FROM pg_extension"
-            login_db: postgres
-          become: true
-          become_user: postgres
-          register: _extension_query
-
-        - name: Set extension facts
-          ansible.builtin.set_fact:
-            _registered_extensions: "{{ _registered }}"
-            _missing_extensions: "{{ _missing }}"
-          vars:
-            _registered: "{{ _extension_query.query_result | map(attribute='extname') }}"
-            _expected:
-              - pgaudit
-              - pg_cron
-              - pg_stat_statements
-              - pg_partman
-              - timescaledb
-            _missing: "{{ _expected | difference(_registered) }}"
-
-        - name: Verify registered extensions
+        - name: Verify Patroni cluster status
           block:
-            - name: Check registrations
+            - name: Stat Patroni configuration file
+              ansible.builtin.stat:
+                path: "{{ _patroni_cluster_config_file }}"
+              register: _patroni_config_stat
+
+            - name: Slurp Patroni configuration
+              ansible.builtin.slurp:
+                path: "{{ _patroni_cluster_config_file }}"
+              become: true
+              register: _patroni_config_query
+
+            - name: Set Patroni configuration facts
+              ansible.builtin.set_fact:
+                _api_username: "{{ _config_data.restapi.authentication.username }}"
+                _api_password: "{{ _config_data.restapi.authentication.password }}"
+              vars:
+                _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+
+            - name: Verify member liveness
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/liveness"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 3
+
+            - name: Query cluster status
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 3
+                return_content: true
+              register: _cluster_status_query
+
+            - name: Verify cluster master
               ansible.builtin.assert:
-                that: _missing_extensions | length == 0
+                that: _masters | length == 1
+                success_msg: "Found cluster master {{ (_masters | first).name }}"
+                fail_msg: "Cluster does not have a master"
+              vars:
+                _members: "{{ _cluster_status_query.json.members }}"
+                _masters: "{{ _members | selectattr('role', 'equalto', 'leader') }}"
+              when: not _patroni_cluster_standby | bool
 
-          rescue:
-            - name: Debug failed extensions
-              ansible.builtin.fail:
-                msg: "Unable to find extensions [{{ ', '.join(_missing_extensions) }}]"
+            - name: Verify cluster standby-leader
+              ansible.builtin.assert:
+                that: _leader | length == 1
+                success_msg: "Found cluster standby-leader {{ (_leader | first).name }}"
+                fail_msg: "Cluster does not have a master"
+              vars:
+                _members: "{{ _cluster_status_query.json.members }}"
+                _leader: "{{ _members | selectattr('role', 'equalto', 'standby_leader') }}"
+              when: _patroni_cluster_standby | bool
 
-    - name: Verify Consul cluster status
-      block:
-        - name: Query Consul node cluster status
-          ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $3}'"
-          register: _consul_node_status
-          changed_when: false
-          no_log: true
+            - name: Verify cluster member status
+              ansible.builtin.assert:
+                that:
+                  - _status.role in ['leader', 'replica', 'sync_standby', 'standby_leader']
+                  - _status.state in ['running', 'streaming']
+              vars:
+                _members: "{{ _cluster_status_query.json.members }}"
+                _hostname: "{{ ansible_facts.hostname | ansible.builtin.regex_replace('-', '_') }}"
+                _status: "{{ _members | selectattr('name', 'equalto', _hostname) | first }}"
+
+            - name: Query cluster configuration
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 3
+              register: _patroni_cluster_config
+
+        - name: Verify Patroni cluster DCS configuration
+          when: _patroni_config_dcs != {}
+          run_once: true
           tags: skip_ansible_lint
+          block:
+            - name: Query dynamic configuration over REST API
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+              register: _patroni_config_query
 
-        - name: Check Consul node cluster status
-          ansible.builtin.assert:
-            that: _status == _expected
-            fail_msg: "Expected consul node type '{{ _expected }}', got '{{ _status }}'"
-            success_msg: "Consul node type is '{{ _status }}'"
+            - name: Debug dynamic configuration settings
+              ansible.builtin.debug:
+                msg: "{{ _patroni_config_query.json }}"
+
+            - name: Verify dynamic configuration settings
+              ansible.builtin.assert:
+                that: item.value == _patroni_config_query.json['postgresql']['parameters'][item.key]
+                fail_msg: "{{ item.key }} is set to {{ _patroni_config_query.json['postgresql']['parameters'][item.key] }}, expected {{ item.value }}"
+              loop_control:
+                label: "postgresql.parameters.{{ item.key }}"
+              loop: "{{ _patroni_config_dcs.postgresql.parameters | dict2items }}"
+              when: item.key != "archive_command"
+
+        - name: Verify Patroni cluster log destination
+          block:
+            - name: Query registered extensions
+              community.postgresql.postgresql_query:
+                query: "SELECT pg_current_logfile()"
+                login_db: postgres
+              become: true
+              become_user: postgres
+              register: _log_query
+
+            - name: Verify log destination
+              ansible.builtin.assert:
+                that: _pg_logfile_path | ansible.builtin.regex_search(_regex) | length > 0
+              vars:
+                _regex: "^{{ _patroni_cluster_log_path }}/.*"
+                _pg_logfile_result: "{{ _log_query.query_result | first }}"
+                _pg_logfile_path: "{{ _pg_logfile_result.pg_current_logfile }}"
+
+        - name: Verify Patroni cluster extensions
+          block:
+            - name: Query registered extensions
+              community.postgresql.postgresql_query:
+                query: "SELECT extname FROM pg_extension"
+                login_db: postgres
+              become: true
+              become_user: postgres
+              register: _extension_query
+
+            - name: Set extension facts
+              ansible.builtin.set_fact:
+                _registered_extensions: "{{ _registered }}"
+                _missing_extensions: "{{ _missing }}"
+              vars:
+                _registered: "{{ _extension_query.query_result | map(attribute='extname') }}"
+                _expected:
+                  - pgaudit
+                  - pg_cron
+                  - pg_stat_statements
+                  - pg_partman
+                  - timescaledb
+                _missing: "{{ _expected | difference(_registered) }}"
+
+            - name: Verify registered extensions
+              block:
+                - name: Check registrations
+                  ansible.builtin.assert:
+                    that: _missing_extensions | length == 0
+
+              rescue:
+                - name: Debug failed extensions
+                  ansible.builtin.fail:
+                    msg: "Unable to find extensions [{{ ', '.join(_missing_extensions) }}]"
+
+        - name: Verify Consul cluster status
+          block:
+            - name: Query Consul node cluster status
+              ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $3}'"
+              register: _consul_node_status
+              changed_when: false
+              no_log: true
+              tags: skip_ansible_lint
+
+            - name: Check Consul node cluster status
+              ansible.builtin.assert:
+                that: _status == _expected
+                fail_msg: "Expected consul node type '{{ _expected }}', got '{{ _status }}'"
+                success_msg: "Consul node type is '{{ _status }}'"
+              vars:
+                _status: "{{ _consul_node_status.stdout }}"
+                _expected: "alive"
+
+        - name: Verify Consul cluster type
+          block:
+            - name: Query Consul node cluster type
+              ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'"
+              register: _consul_node_type
+              changed_when: false
+              tags: skip_ansible_lint
+
+            - name: Check Consul node cluster type
+              ansible.builtin.assert:
+                that: _status == _expected
+                fail_msg: "Expected consul node type '{{ _expected }}', got '{{ _status }}'"
+                success_msg: "Consul node type is '{{ _status }}'"
+              vars:
+                _status: "{{ _consul_node_type.stdout }}"
+                _expected: "client"
+
+      always:
+        - name: Include virtualenv tasks
+          ansible.builtin.include_tasks: ../../playbooks/tasks/virtualenv.yml
           vars:
-            _status: "{{ _consul_node_status.stdout }}"
-            _expected: "alive"
-
-    - name: Verify Consul cluster type
-      block:
-        - name: Query Consul node cluster type
-          ansible.builtin.shell: "consul members listNode | grep {{ inventory_hostname }} | awk '{print $4}'"
-          register: _consul_node_type
-          changed_when: false
-          tags: skip_ansible_lint
-
-        - name: Check Consul node cluster type
-          ansible.builtin.assert:
-            that: _status == _expected
-            fail_msg: "Expected consul node type '{{ _expected }}', got '{{ _status }}'"
-            success_msg: "Consul node type is '{{ _status }}'"
-          vars:
-            _status: "{{ _consul_node_type.stdout }}"
-            _expected: "client"
+            patroni_virtualenv_manage: false
 
 - name: Verify Consul cluster
   hosts: patroni_consul
@@ -377,29 +390,10 @@
   vars_files:
     - ../../playbooks/vars/main.yml
   tasks:
-    - name: Create virtualenv
-      ansible.builtin.tempfile:
-        state: directory
-        prefix: .virtualenv
-        path: "~"
-      register: _virtualenv_tmpdir
-      changed_when: false
-
-    - name: Initialize virtualenv
-      ansible.builtin.pip:
-        name:
-          - psycopg2-binary
-        virtualenv: "{{ _virtualenv_tmpdir.path }}/venv"
-      changed_when: false
-
-    - name: Record python interpreter path
-      ansible.builtin.set_fact:
-        _environment_python: "{{ ansible_facts.python.executable }}"
-        _patroni_virtualenv_tmpdir: "{{ _virtualenv_tmpdir }}"
-
-    - name: Change python interpreter
-      ansible.builtin.set_fact:
-        ansible_python_interpreter: "{{ _patroni_virtualenv_tmpdir.path }}/venv/bin/python"
+    - name: Include virtualenv tasks
+      ansible.builtin.include_tasks: ../../playbooks/tasks/virtualenv.yml
+      vars:
+        patroni_virtualenv_manage: true
 
     - name: Verify HAProxy services
       when:
@@ -458,15 +452,10 @@
             fail_msg: "Slave query result was {{ _slave_query.query_result }}"
 
       always:
-        - name: Restore python interpreter
-          ansible.builtin.set_fact:
-            ansible_python_interpreter: "{{ _environment_python }}"
-
-        - name: Destroy virtualenv
-          ansible.builtin.file:
-            path: "{{ _patroni_virtualenv_tmpdir.path }}"
-            state: absent
-          changed_when: false
+        - name: Include virtualenv tasks
+          ansible.builtin.include_tasks: ../../playbooks/tasks/virtualenv.yml
+          vars:
+            patroni_virtualenv_manage: false
 
 - name: Verify Barman deployment
   hosts: patroni_barman

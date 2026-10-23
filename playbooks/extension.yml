@@ -1,56 +1,69 @@
 ---
-- name: Deploy Patroni extension - {{ _patroni_extension }}
+- name: Deploy Patroni extension - {{ _patroni_extension | default('') }}
   hosts: "{{ _patroni_cluster_master_group }}"
   any_errors_fatal: true
   become: true
   vars_files:
     - main.yml
   tasks:
-    - name: Set extension facts - {{ _patroni_extension }}
-      ansible.builtin.set_fact:
-        _extension_enable: "{{ lookup('ansible.builtin.vars', _extension_enable_vardef) }}"
-        _extension_config: "{{ lookup('ansible.builtin.vars', _extension_config_vardef) }}"
-        _extension_path: "{{ lookup('ansible.builtin.vars', _extension_path_vardef) }}"
+    - name: Include virtualenv tasks
+      ansible.builtin.include_tasks: ./tasks/virtualenv.yml
       vars:
-        _extension_enable_vardef: "{{ lookup('ansible.builtin.varnames', '^_patroni_cluster_' + _patroni_extension + '_enable$') }}"
-        _extension_config_vardef: "{{ lookup('ansible.builtin.varnames', '^_patroni_cluster_' + _patroni_extension + '_config') }}"
-        _extension_path_vardef: "{{ lookup('ansible.builtin.varnames', '^_patroni_config_' + _patroni_extension + '$') }}"
+        patroni_virtualenv_manage: true
 
-    - name: Unregister PostgreSQL extension - {{ _patroni_extension }}
-      when: not (_extension_enable | bool)
+    - name: Manage extension tasks
       block:
-        - name: Disable extension - {{ _patroni_extension }}
-          community.postgresql.postgresql_query:
-            query: "DROP EXTENSION IF EXISTS {{ _patroni_extension }}"
-            login_db: postgres
-          become: true
-          become_user: "{{ _postgresql_user }}"
+        - name: Set extension facts - {{ _patroni_extension }}
+          ansible.builtin.set_fact:
+            _extension_enable: "{{ lookup('ansible.builtin.vars', _extension_enable_vardef) }}"
+            _extension_config: "{{ lookup('ansible.builtin.vars', _extension_config_vardef) }}"
+            _extension_path: "{{ lookup('ansible.builtin.vars', _extension_path_vardef) }}"
+          vars:
+            _extension_enable_vardef: "{{ lookup('ansible.builtin.varnames', '^_patroni_cluster_' + _patroni_extension + '_enable$') }}"
+            _extension_config_vardef: "{{ lookup('ansible.builtin.varnames', '^_patroni_cluster_' + _patroni_extension + '_config') }}"
+            _extension_path_vardef: "{{ lookup('ansible.builtin.varnames', '^_patroni_config_' + _patroni_extension + '$') }}"
 
-        - name: Destroy PostgreSQL config - {{ _patroni_extension }}
-          ansible.builtin.file:
-            path: "{{ _postgresql_conf_include }}/{{ _extension_path }}"
-            state: absent
+        - name: Unregister PostgreSQL extension - {{ _patroni_extension }}
           when: not (_extension_enable | bool)
-          notify: postgresql_reload
+          block:
+            - name: Disable extension - {{ _patroni_extension }}
+              community.postgresql.postgresql_query:
+                query: "DROP EXTENSION IF EXISTS {{ _patroni_extension }}"
+                login_db: postgres
+              become: true
+              become_user: "{{ _postgresql_user }}"
 
-    - name: Register PostgreSQL extension - {{ _patroni_extension }}
-      when: _extension_enable | bool
-      block:
-        - name: Manage PostgreSQL include config - {{ _patroni_extension }}
-          ansible.builtin.copy:
-            dest: "{{ _postgresql_conf_include }}/{{ _extension_path }}"
-            content: "{{ _extension_config }}"
-            owner: "{{ _postgresql_user }}"
-            group: "{{ _postgresql_group }}"
-            mode: "u=rw,go=r"
-          notify: patroni_reload
+            - name: Destroy PostgreSQL config - {{ _patroni_extension }}
+              ansible.builtin.file:
+                path: "{{ _postgresql_conf_include }}/{{ _extension_path }}"
+                state: absent
+              when: not (_extension_enable | bool)
+              notify: postgresql_reload
 
-        - name: Enable extension - {{ _patroni_extension }}
-          community.postgresql.postgresql_query:
-            query: "CREATE EXTENSION IF NOT EXISTS {{ _patroni_extension }}"
-            login_db: postgres
-          become: true
-          become_user: "{{ _postgresql_user }}"
+        - name: Register PostgreSQL extension - {{ _patroni_extension }}
+          when: _extension_enable | bool
+          block:
+            - name: Manage PostgreSQL include config - {{ _patroni_extension }}
+              ansible.builtin.copy:
+                dest: "{{ _postgresql_conf_include }}/{{ _extension_path }}"
+                content: "{{ _extension_config }}"
+                owner: "{{ _postgresql_user }}"
+                group: "{{ _postgresql_group }}"
+                mode: "u=rw,go=r"
+              notify: patroni_reload
+
+            - name: Enable extension - {{ _patroni_extension }}
+              community.postgresql.postgresql_query:
+                query: "CREATE EXTENSION IF NOT EXISTS {{ _patroni_extension }}"
+                login_db: postgres
+              become: true
+              become_user: "{{ _postgresql_user }}"
+
+      always:
+        - name: Include virtualenv tasks
+          ansible.builtin.include_tasks: ./tasks/virtualenv.yml
+          vars:
+            patroni_virtualenv_manage: false
 
   handlers:
     - name: Reload Patroni

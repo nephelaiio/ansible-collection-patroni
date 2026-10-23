@@ -1,2 +1,0 @@
-galaxy.yml galaxy[no-changelog]
-playbooks/extension.yml syntax-check[specific]

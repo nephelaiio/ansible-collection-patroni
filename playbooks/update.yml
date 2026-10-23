@@ -199,158 +199,57 @@
   roles:
     - nephelaiio.patroni.update
   pre_tasks:
-    - name: Stat Patroni configuration file
-      ansible.builtin.stat:
-        path: "{{ _patroni_cluster_config_file }}"
-      register: _patroni_config_stat
-
-    - name: Slurp Patroni configuration
-      ansible.builtin.slurp:
-        path: "{{ _patroni_cluster_config_file }}"
-      register: _patroni_config_query
-
-    - name: Set Patroni configuration facts
-      ansible.builtin.set_fact:
-        _api_username: "{{ _config_data.restapi.authentication.username }}"
-        _api_password: "{{ _config_data.restapi.authentication.password }}"
+    - name: Include virtualenv tasks
+      ansible.builtin.include_tasks: ./tasks/virtualenv.yml
       vars:
-        _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+        patroni_virtualenv_manage: true
 
-    - name: Verify primary liveness
-      ansible.builtin.uri:
-        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/liveness"
-        user: "{{ _api_username }}"
-        password: "{{ _api_password }}"
-        method: GET
-        status_code: 200
-        timeout: 3
-      retries: 30
-      register: patroni_status
-      until: patroni_status is succeeded
-      delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-
-    - name: Verify primary status
-      ansible.builtin.uri:
-        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/primary"
-        user: "{{ _api_username }}"
-        password: "{{ _api_password }}"
-        method: GET
-        status_code: 200
-        timeout: 3
-      retries: 30
-      register: patroni_status
-      until: patroni_status is succeeded
-      delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
-
-    - name: Check cluster state
-      ansible.builtin.uri:
-        url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
-        user: "{{ _api_username }}"
-        password: "{{ _api_password }}"
-        method: GET
-        status_code: 200
-        timeout: 10
-      register: _cluster_state
-
-    - name: Query existing databases
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT datname FROM pg_database WHERE datallowconn;
-        login_db: "postgres"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_databases_results
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Query installed PostgreSQL extensions
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: SELECT extname FROM pg_extension;
-        login_db: "{{ item }}"
-      vars:
-        _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
-        _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
-      loop: "{{ _db_names }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_extension_results
-      no_log: "{{ _patroni_nolog }}"
-
-    - name: Build installed PostgreSQL extensions
-      ansible.builtin.set_fact:
-        _patroni_installed_extensions: "{{ _extensions | flatten }}"
-      vars:
-        _to_dict: "nephelaiio.plugins.to_dict"
-        _cons: "nephelaiio.plugins.cons"
-        _pairs: "nephelaiio.plugins.pairs"
-        _results: "{{ _patroni_extension_results.results | default([]) | sort(attribute='item') }}"
-        _databases_list: "{{ _results | map(attribute='item') }}"
-        _databases: "{{ _databases_list | map(_to_dict, 'database') | map(_cons) }}"
-        _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'extname') }}"
-        _extnames: "{{ _query | map('map', attribute='extname') | map(_cons) }}"
-        _extensions_dict: "{{ _extnames | map('map', _to_dict, 'extensions') }}"
-        _extensions: "{{ _databases | zip(_extensions_dict) | map(_pairs) | map('map', 'combine') }}"
-      delegate_facts: true
-      delegate_to: localhost
-
-    - name: Set cluster state facts
-      ansible.builtin.set_fact:
-        _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
-
-    - name: Debug cluster state
-      ansible.builtin.debug:
-        var: _cluster_state.json
-
-    - name: Debug cluster leader
-      ansible.builtin.debug:
-        var: _cluster_leader
-
-    - name: Verify replicas are healthy
-      ansible.builtin.assert:
-        that:
-          - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | list | length > 0
-          - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | selectattr('state', 'in', ['running', 'streaming']) | list | length > 0
-        fail_msg: "No healthy replicas found for switchover"
-        success_msg: "Healthy replicas detected, proceeding with switchover"
-
-    - name: Perform cluster switchover
+    - name: Manage update tasks
       block:
-        - name: Switchover cluster role
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/switchover"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: POST
-            body_format: json
-            body:
-              leader: "{{ _cluster_leader }}"
-            status_code: 200
-            timeout: "{{ _patroni_cluster_switchover_timeout }}"
-          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+        - name: Stat Patroni configuration file
+          ansible.builtin.stat:
+            path: "{{ _patroni_cluster_config_file }}"
+          register: _patroni_config_stat
 
-        - name: Verify replica pre-update status
+        - name: Slurp Patroni configuration
+          ansible.builtin.slurp:
+            path: "{{ _patroni_cluster_config_file }}"
+          register: _patroni_config_query
+
+        - name: Set Patroni configuration facts
+          ansible.builtin.set_fact:
+            _api_username: "{{ _config_data.restapi.authentication.username }}"
+            _api_password: "{{ _config_data.restapi.authentication.password }}"
+          vars:
+            _config_data: "{{ _patroni_config_query.content | ansible.builtin.b64decode | from_yaml }}"
+
+        - name: Verify primary liveness
           ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/liveness"
             user: "{{ _api_username }}"
             password: "{{ _api_password }}"
             method: GET
             status_code: 200
             timeout: 3
-          vars:
-            _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
-            _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
           retries: 30
           register: patroni_status
           until: patroni_status is succeeded
           delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
-        - name: Stop Patroni service
-          ansible.builtin.service:
-            name: patroni
-            state: stopped
+        - name: Verify primary status
+          ansible.builtin.uri:
+            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/primary"
+            user: "{{ _api_username }}"
+            password: "{{ _api_password }}"
+            method: GET
+            status_code: 200
+            timeout: 3
+          retries: 30
+          register: patroni_status
+          until: patroni_status is succeeded
+          delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
 
-      rescue:
-        - name: Get cluster information on switchover failure
+        - name: Check cluster state
           ansible.builtin.uri:
             url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
             user: "{{ _api_username }}"
@@ -358,31 +257,145 @@
             method: GET
             status_code: 200
             timeout: 10
-          register: _cluster_state_failure
-          ignore_errors: true
+          register: _cluster_state
 
-        - name: Get Patroni configuration on failure
-          ansible.builtin.uri:
-            url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
-            user: "{{ _api_username }}"
-            password: "{{ _api_password }}"
-            method: GET
-            status_code: 200
-            timeout: 10
-          register: _patroni_config_failure
-          ignore_errors: true
+        - name: Query existing databases
+          community.postgresql.postgresql_query:
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: SELECT datname FROM pg_database WHERE datallowconn;
+            login_db: "postgres"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _patroni_databases_results
+          no_log: "{{ _patroni_nolog }}"
+
+        - name: Query installed PostgreSQL extensions
+          community.postgresql.postgresql_query:
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: SELECT extname FROM pg_extension;
+            login_db: "{{ item }}"
+          vars:
+            _databases: "{{ _patroni_databases_results.query_result | default([]) }}"
+            _db_names: "{{ _databases | map(attribute='datname') | flatten }}"
+          loop: "{{ _db_names }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _patroni_extension_results
+          no_log: "{{ _patroni_nolog }}"
+
+        - name: Build installed PostgreSQL extensions
+          ansible.builtin.set_fact:
+            _patroni_installed_extensions: "{{ _extensions | flatten }}"
+          vars:
+            _to_dict: "nephelaiio.plugins.to_dict"
+            _cons: "nephelaiio.plugins.cons"
+            _pairs: "nephelaiio.plugins.pairs"
+            _results: "{{ _patroni_extension_results.results | default([]) | sort(attribute='item') }}"
+            _databases_list: "{{ _results | map(attribute='item') }}"
+            _databases: "{{ _databases_list | map(_to_dict, 'database') | map(_cons) }}"
+            _query: "{{ _results | map(attribute='query_result') | map('selectattr', 'extname') }}"
+            _extnames: "{{ _query | map('map', attribute='extname') | map(_cons) }}"
+            _extensions_dict: "{{ _extnames | map('map', _to_dict, 'extensions') }}"
+            _extensions: "{{ _databases | zip(_extensions_dict) | map(_pairs) | map('map', 'combine') }}"
+          delegate_facts: true
+          delegate_to: localhost
+
+        - name: Set cluster state facts
+          ansible.builtin.set_fact:
+            _cluster_leader: "{{ _cluster_state.json.members | selectattr('role', 'equalto', 'leader') | map(attribute='name') | first }}"
 
         - name: Debug cluster state
           ansible.builtin.debug:
-            var: _cluster_state_failure.json
+            var: _cluster_state.json
 
-        - name: Debug cluster config
+        - name: Debug cluster leader
           ansible.builtin.debug:
-            var: _patroni_config_failure.json
+            var: _cluster_leader
 
-        - name: Fail playbook on switchover error
-          ansible.builtin.fail:
-            msg: "Cluster master switchover failed. Check debug output for details."
+        - name: Verify replicas are healthy
+          ansible.builtin.assert:
+            that:
+              - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | list | length > 0
+              - _cluster_state.json.members | selectattr('role', 'equalto', 'replica') | selectattr('state', 'in', ['running', 'streaming']) | list | length > 0
+            fail_msg: "No healthy replicas found for switchover"
+            success_msg: "Healthy replicas detected, proceeding with switchover"
+
+        - name: Perform cluster switchover
+          block:
+            - name: Switchover cluster role
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/switchover"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: POST
+                body_format: json
+                body:
+                  leader: "{{ _cluster_leader }}"
+                status_code: 200
+                timeout: "{{ _patroni_cluster_switchover_timeout }}"
+              delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+
+            - name: Verify replica pre-update status
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/replica?lag={{ _maxlag }}"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 3
+              vars:
+                _conf_lag: "[{{ _patroni_cluster_maxlag_failover | int }}, {{ _patroni_cluster_maxlag_sync | int }}]"
+                _maxlag: "{{ [_conf_lag] | map('select', 'gt', 0) | min | first }}"
+              retries: 30
+              register: patroni_status
+              until: patroni_status is succeeded
+              delay: "{{ ((_patroni_cluster_start_timeout | int) / 10) | round(0, 'ceil') | int }}"
+
+            - name: Stop Patroni service
+              ansible.builtin.service:
+                name: patroni
+                state: stopped
+
+          rescue:
+            - name: Get cluster information on switchover failure
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/cluster"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 10
+              register: _cluster_state_failure
+              ignore_errors: true
+
+            - name: Get Patroni configuration on failure
+              ansible.builtin.uri:
+                url: "http://localhost:{{ _patroni_cluster_port_restapi }}/config"
+                user: "{{ _api_username }}"
+                password: "{{ _api_password }}"
+                method: GET
+                status_code: 200
+                timeout: 10
+              register: _patroni_config_failure
+              ignore_errors: true
+
+            - name: Debug cluster state
+              ansible.builtin.debug:
+                var: _cluster_state_failure.json
+
+            - name: Debug cluster config
+              ansible.builtin.debug:
+                var: _patroni_config_failure.json
+
+            - name: Fail playbook on switchover error
+              ansible.builtin.fail:
+                msg: "Cluster master switchover failed. Check debug output for details."
+
+      always:
+        - name: Include virtualenv tasks
+          ansible.builtin.include_tasks: ./tasks/virtualenv.yml
+          vars:
+            patroni_virtualenv_manage: false
 
   post_tasks:
     - name: Reboot node

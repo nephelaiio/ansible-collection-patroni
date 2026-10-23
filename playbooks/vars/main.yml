@@ -334,10 +334,11 @@ _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default(
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 _patroni_cluster_materialized_views: "{{ patroni_cluster_materialized_views | default([]) }}"
 _patroni_cluster_views: "{{ patroni_cluster_views | default([]) }}"
+_patroni_virtualenv_tmpdir_mode: "{{ patroni_virtualenv_tmpdir_mode | default('0777') }}"
 
 # Hardcoded values
 
-postgresql_hba_entries: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
+postgresql_hba_entries: "{{ _patroni_cluster_hba_base | union(_patroni_cluster_hba_extra) }}"
 postgresql_release: "{{ _patroni_cluster_release }}"
 postgresql_initdb: false
 postgresql_service_state: stopped

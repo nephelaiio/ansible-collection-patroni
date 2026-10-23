@@ -23,187 +23,200 @@
         _query: "{{ _views | rejectattr('query', 'defined') }}"
         _name: "{{ _views | rejectattr('name', 'defined') }}"
 
-    - name: Set default view facts
-      ansible.builtin.set_fact:
-        _select_attrs: "nephelaiio.plugins.select_attributes"
-        _to_dict: "nephelaiio.plugins.to_dict"
-        _cons: "nephelaiio.plugins.cons"
-        _pairs: "nephelaiio.plugins.pairs"
-        _inner_product: "nephelaiio.plugins.inner_product"
-        _drop_attrs: "nephelaiio.plugins.drop_attributes"
-        _patroni_views_overwritten: "{{ _view_defaults }}"
+    - name: Include virtualenv tasks
+      ansible.builtin.include_tasks: ./tasks/virtualenv.yml
       vars:
-        _default:
-          state: present
-          schema: public
-          login_db: postgres
-        _views: "{{ _patroni_cluster_materialized_views | sort(attribute='name') }}"
-        _view_defaults: "{{ [_default] | product(_views) | map('combine') }}"
+        patroni_virtualenv_manage: true
 
-    - name: Query existing PostgreSQL schemas
-      community.postgresql.postgresql_query:
-        login_db: "{{ _db }}"
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: >-
-          SELECT schema_name FROM information_schema.schemata;
-        autocommit: true
-      vars:
-        _db: "{{ item.login_db }}"
-      loop_control:
-        label: "{{ _db }}"
-      loop: "{{ _patroni_views_overwritten }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_view_schemas
-      no_log: "{{ _patroni_nolog }}"
+    - name: Manage views
+      block:
+        - name: Set default view facts
+          ansible.builtin.set_fact:
+            _select_attrs: "nephelaiio.plugins.select_attributes"
+            _to_dict: "nephelaiio.plugins.to_dict"
+            _cons: "nephelaiio.plugins.cons"
+            _pairs: "nephelaiio.plugins.pairs"
+            _inner_product: "nephelaiio.plugins.inner_product"
+            _drop_attrs: "nephelaiio.plugins.drop_attributes"
+            _patroni_views_overwritten: "{{ _view_defaults }}"
+          vars:
+            _default:
+              state: present
+              schema: public
+              login_db: postgres
+            _views: "{{ _patroni_cluster_materialized_views | sort(attribute='name') }}"
+            _view_defaults: "{{ [_default] | product(_views) | map('combine') }}"
 
-    - name: Verify PostgreSQL schemas for databases
-      ansible.builtin.assert:
-        that: _schemas_filter | length == 0
-        fail_msg: "There are missing schemas: {{ _schemas_filter }}"
-      vars:
-        _results: "{{ _patroni_view_schemas.results | default([]) }}"
-        _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
-        _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
-        _schemas: "{{ _patroni_views_overwritten | map(attribute='schema') | flatten }}"
-        _target_schemas_default: "{{ _schemas + ['public'] | unique }}"
-        _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
-      tags: skip_ansible_lint
+        - name: Query existing PostgreSQL schemas
+          community.postgresql.postgresql_query:
+            login_db: "{{ _db }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: >-
+              SELECT schema_name FROM information_schema.schemata;
+            autocommit: true
+          vars:
+            _db: "{{ item.login_db }}"
+          loop_control:
+            label: "{{ _db }}"
+          loop: "{{ _patroni_views_overwritten }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _patroni_view_schemas
+          no_log: "{{ _patroni_nolog }}"
 
-    - name: Query database
-      community.postgresql.postgresql_ping:
-        login_db: "{{ _name }}"
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-      vars:
-        _name: "{{ item.login_db }}"
-      loop_control:
-        label: "{{ _name }}"
-      loop: "{{ _patroni_views_overwritten }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: _postgresql_db_query
+        - name: Verify PostgreSQL schemas for databases
+          ansible.builtin.assert:
+            that: _schemas_filter | length == 0
+            fail_msg: "There are missing schemas: {{ _schemas_filter }}"
+          vars:
+            _results: "{{ _patroni_view_schemas.results | default([]) }}"
+            _query_results: "{{ _results | map(attribute='query_result') | flatten }}"
+            _existing_schemas: "{{ _query_results | map(attribute='schema_name') | unique }}"
+            _schemas: "{{ _patroni_views_overwritten | map(attribute='schema') | flatten }}"
+            _target_schemas_default: "{{ _schemas | union(['public']) }}"
+            _schemas_filter: "{{ _target_schemas_default | reject('in', _existing_schemas) }}"
+          tags: skip_ansible_lint
 
-    - name: Verify postgresql source databases
-      ansible.builtin.assert:
-        that: _missing | length == 0
-        fail_msg: "There are missing databases in PostgreSQL: [{{ _missing_names | join(', ') }}]"
-      vars:
-        _results: "{{ _postgresql_db_query.results | default([]) }}"
-        _missing: "{{ _results | rejectattr('is_available') }}"
-        _missing_names: "{{ _missing | map(attribute='login_db') }}"
+        - name: Query database
+          community.postgresql.postgresql_ping:
+            login_db: "{{ _name }}"
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+          vars:
+            _name: "{{ item.login_db }}"
+          loop_control:
+            label: "{{ _name }}"
+          loop: "{{ _patroni_views_overwritten }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _postgresql_db_query
 
-    - name: Query existing materialized views
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: "SELECT * FROM pg_matviews;"
-        login_db: "{{ _db }}"
-      vars:
-        _db: "{{ item }}"
-        _target_dbs: "{{ _patroni_views_overwritten | map(attribute='login_db') | unique }}"
-      loop_control:
-        label: "{{ _db }}"
-      loop: "{{ _target_dbs }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      register: _patroni_view_results
+        - name: Verify postgresql source databases
+          ansible.builtin.assert:
+            that: _missing | length == 0
+            fail_msg: "There are missing databases in PostgreSQL: [{{ _missing_names | join(', ') }}]"
+          vars:
+            _results: "{{ _postgresql_db_query.results | default([]) }}"
+            _missing: "{{ _results | rejectattr('is_available') }}"
+            _missing_names: "{{ _missing | map(attribute='login_db') }}"
 
-    - name: Set existing materialized view query fact
-      ansible.builtin.set_fact:
-        _patroni_query_views: "{{ _query_result }}"
-      vars:
-        _results: "{{ _patroni_view_results.results | default([]) }}"
-        _query_result: "{{ _results | selectattr('query_result') }}"
+        - name: Query existing materialized views
+          community.postgresql.postgresql_query:
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: "SELECT * FROM pg_matviews;"
+            login_db: "{{ _db }}"
+          vars:
+            _db: "{{ item }}"
+            _target_dbs: "{{ _patroni_views_overwritten | map(attribute='login_db') | unique }}"
+          loop_control:
+            label: "{{ _db }}"
+          loop: "{{ _target_dbs }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          register: _patroni_view_results
 
-    - name: Set materialized view facts
-      ansible.builtin.set_fact:
-        _patroni_existing_views: "{{ _existing_views }}"
-        _patroni_delete_views: "{{ _orphan_views }}"
-        _patroni_recreate_views: "{{ _recreate_views }}"
-        _patroni_view_targets: "{{ _present }}"
-      vars:
-        _attrs:
-          - state
-        _regex: "AS \\\"\\?column\\?\\\";"
-        _existing: "{{ _patroni_query_views | sort(attribute='item') }}"
-        _dbs: "{{ _existing | map(attribute='item') }}"
-        _dbs_dict: "{{ _dbs | map(_to_dict, 'login_db') | map(_cons) }}"
-        _query_results: "{{ _existing | map(attribute='query_result') }}"
-        _mview: "{{ _query_results | map('map', attribute='matviewname') }}"
-        _mview_dict: "{{ _mview | map('map', _to_dict, 'name') }}"
-        _mviews_overwritten: "{{ _mview_dict | zip(_dbs_dict) | map(_pairs) | map('map', 'combine') }}"
-        _schemas: "{{ _query_results | map('map', attribute='schemaname') }}"
-        _schemas_dict: "{{ _schemas | map('map', _to_dict, 'schema') }}"
-        _schemas_overwritten: "{{ _mviews_overwritten | zip(_schemas_dict) | map(_pairs) | map('map', 'combine') }}"
-        _queries: "{{ _query_results | map('map', attribute='definition') | map('map', 'regex_replace', _regex, '') | map('map', 'trim') }}"
-        _queries_dict: "{{ _queries | map('map', _to_dict, 'query') }}"
-        _existing_views: "{{ _schemas_overwritten | zip(_queries_dict) | map(_pairs) | map('map', 'combine') | flatten }}"
-        _existing_view_queries: "{{ _existing_views | map(attribute='query') | map('trim') }}"
-        _existing_view_queries_dict: "{{ _existing_view_queries | map(_to_dict, 'query') }}"
-        _existing_view_queries_overwritten: "{{ _existing_views | zip(_existing_view_queries_dict) | map('combine') | map(_drop_attrs, _attrs) }}"
-        _targets: "{{ _patroni_views_overwritten }}"
-        _target_queries: "{{ _targets | map(attribute='query') | map('trim') }}"
-        _target_queries_dict: "{{ _target_queries | map(_to_dict, 'query') }}"
-        _targets_overwritten: "{{ _targets | zip(_target_queries_dict) | map('combine') }}"
-        _present: "{{ _targets_overwritten | selectattr('state', 'equalto', 'present') }}"
-        _absent: "{{ _targets_overwritten | difference(_present) }}"
-        _orphan_views: "{{ _absent | map(_drop_attrs, _attrs) | intersect(_existing_view_queries_overwritten) }}"
-        _recreate_views: "{{ _present | map(_drop_attrs, _attrs) | intersect(_existing_view_queries_overwritten) }}"
+        - name: Set existing materialized view query fact
+          ansible.builtin.set_fact:
+            _patroni_query_views: "{{ _query_result }}"
+          vars:
+            _results: "{{ _patroni_view_results.results | default([]) }}"
+            _query_result: "{{ _results | selectattr('query_result') }}"
 
-    - name: Debug target materialized views
-      ansible.builtin.debug:
-        var: _patroni_view_targets
+        - name: Set materialized view facts
+          ansible.builtin.set_fact:
+            _patroni_existing_views: "{{ _existing_views }}"
+            _patroni_delete_views: "{{ _orphan_views }}"
+            _patroni_recreate_views: "{{ _recreate_views }}"
+            _patroni_view_targets: "{{ _present }}"
+          vars:
+            _attrs:
+              - state
+            _regex: "AS \\\"\\?column\\?\\\";"
+            _existing: "{{ _patroni_query_views | sort(attribute='item') }}"
+            _dbs: "{{ _existing | map(attribute='item') }}"
+            _dbs_dict: "{{ _dbs | map(_to_dict, 'login_db') | map(_cons) }}"
+            _query_results: "{{ _existing | map(attribute='query_result') }}"
+            _mview: "{{ _query_results | map('map', attribute='matviewname') }}"
+            _mview_dict: "{{ _mview | map('map', _to_dict, 'name') }}"
+            _mviews_overwritten: "{{ _mview_dict | zip(_dbs_dict) | map(_pairs) | map('map', 'combine') }}"
+            _schemas: "{{ _query_results | map('map', attribute='schemaname') }}"
+            _schemas_dict: "{{ _schemas | map('map', _to_dict, 'schema') }}"
+            _schemas_overwritten: "{{ _mviews_overwritten | zip(_schemas_dict) | map(_pairs) | map('map', 'combine') }}"
+            _queries: "{{ _query_results | map('map', attribute='definition') | map('map', 'regex_replace', _regex, '') | map('map', 'trim') }}"
+            _queries_dict: "{{ _queries | map('map', _to_dict, 'query') }}"
+            _existing_views: "{{ _schemas_overwritten | zip(_queries_dict) | map(_pairs) | map('map', 'combine') | flatten }}"
+            _existing_view_queries: "{{ _existing_views | map(attribute='query') | map('trim') }}"
+            _existing_view_queries_dict: "{{ _existing_view_queries | map(_to_dict, 'query') }}"
+            _existing_view_queries_overwritten: "{{ _existing_views | zip(_existing_view_queries_dict) | map('combine') | map(_drop_attrs, _attrs) }}"
+            _targets: "{{ _patroni_views_overwritten }}"
+            _target_queries: "{{ _targets | map(attribute='query') | map('trim') }}"
+            _target_queries_dict: "{{ _target_queries | map(_to_dict, 'query') }}"
+            _targets_overwritten: "{{ _targets | zip(_target_queries_dict) | map('combine') }}"
+            _present: "{{ _targets_overwritten | selectattr('state', 'equalto', 'present') }}"
+            _absent: "{{ _targets_overwritten | difference(_present) }}"
+            _orphan_views: "{{ _absent | map(_drop_attrs, _attrs) | intersect(_existing_view_queries_overwritten) }}"
+            _recreate_views: "{{ _present | map(_drop_attrs, _attrs) | intersect(_existing_view_queries_overwritten) }}"
 
-    - name: Debug existing materialized views
-      ansible.builtin.debug:
-        var: _patroni_existing_views
+        - name: Debug target materialized views
+          ansible.builtin.debug:
+            var: _patroni_view_targets
 
-    - name: Debug materialized views to delete
-      ansible.builtin.debug:
-        var: _patroni_delete_views
+        - name: Debug existing materialized views
+          ansible.builtin.debug:
+            var: _patroni_existing_views
 
-    - name: Recreate changed materialized views
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: "DROP MATERIALIZED VIEW {{ _table }};"
-        login_db: "{{ _db }}"
-      vars:
-        _db: "{{ item.login_db }}"
-        _table: "{{ item.schema }}.{{ item.name }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      loop_control:
-        label: "{{ _db }} - {{ _table }}"
-      loop: "{{ _patroni_recreate_views }}"
+        - name: Debug materialized views to delete
+          ansible.builtin.debug:
+            var: _patroni_delete_views
 
-    - name: Manage materialized views
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: |
-          CREATE MATERIALIZED VIEW IF NOT EXISTS {{ _table }}
-          AS
-            {{ item.query }}
-          WITH DATA;
-        login_db: "{{ _db }}"
-      vars:
-        _db: "{{ item.login_db }}"
-        _table: "{{ item.schema }}.{{ item.name }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      loop_control:
-        label: "{{ _db }} - {{ _table }}"
-      loop: "{{ _patroni_view_targets }}"
-      changed_when: false
+        - name: Recreate changed materialized views
+          community.postgresql.postgresql_query:
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: "DROP MATERIALIZED VIEW {{ _table }};"
+            login_db: "{{ _db }}"
+          vars:
+            _db: "{{ item.login_db }}"
+            _table: "{{ item.schema }}.{{ item.name }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          loop_control:
+            label: "{{ _db }} - {{ _table }}"
+          loop: "{{ _patroni_recreate_views }}"
 
-    - name: Delete materialized views
-      community.postgresql.postgresql_query:
-        login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-        query: "DROP MATERIALIZED VIEW {{ _table }};"
-        login_db: "{{ _db }}"
-      vars:
-        _db: "{{ item.login_db }}"
-        _table: "{{ item.schema }}.{{ item.name }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
-      loop_control:
-        label: "{{ _db }} - {{ _table }}"
-      loop: "{{ _patroni_delete_views }}"
+        - name: Manage materialized views
+          community.postgresql.postgresql_query:
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: |
+              CREATE MATERIALIZED VIEW IF NOT EXISTS {{ _table }}
+              AS
+                {{ item.query }}
+              WITH DATA;
+            login_db: "{{ _db }}"
+          vars:
+            _db: "{{ item.login_db }}"
+            _table: "{{ item.schema }}.{{ item.name }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          loop_control:
+            label: "{{ _db }} - {{ _table }}"
+          loop: "{{ _patroni_view_targets }}"
+          changed_when: false
+
+        - name: Delete materialized views
+          community.postgresql.postgresql_query:
+            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
+            query: "DROP MATERIALIZED VIEW {{ _table }};"
+            login_db: "{{ _db }}"
+          vars:
+            _db: "{{ item.login_db }}"
+            _table: "{{ item.schema }}.{{ item.name }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+          loop_control:
+            label: "{{ _db }} - {{ _table }}"
+          loop: "{{ _patroni_delete_views }}"
+
+      always:
+        - name: Include virtualenv tasks
+          ansible.builtin.include_tasks: ./tasks/virtualenv.yml
+          vars:
+            patroni_virtualenv_manage: false

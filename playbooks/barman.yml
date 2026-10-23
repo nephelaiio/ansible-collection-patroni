@@ -10,14 +10,27 @@
   vars_files:
     - main.yml
   tasks:
-    - name: Manage PostgreSQL Barman role
-      community.postgresql.postgresql_user:
-        name: "{{ _patroni_cluster_barman_username }}"
-        password: "{{ _patroni_cluster_barman_password }}"
-        role_attr_flags: SUPERUSER
-      no_log: "{{ _patroni_nolog }}"
-      become: true
-      become_user: "{{ _postgresql_user }}"
+    - name: Include virtualenv tasks
+      ansible.builtin.include_tasks: ./tasks/virtualenv.yml
+      vars:
+        patroni_virtualenv_manage: true
+
+    - name: Manage barman tasks
+      block:
+        - name: Manage PostgreSQL Barman role
+          community.postgresql.postgresql_user:
+            name: "{{ _patroni_cluster_barman_username }}"
+            password: "{{ _patroni_cluster_barman_password }}"
+            role_attr_flags: SUPERUSER
+          no_log: "{{ _patroni_nolog }}"
+          become: true
+          become_user: "{{ _postgresql_user }}"
+
+      always:
+        - name: Include virtualenv tasks
+          ansible.builtin.include_tasks: ./tasks/virtualenv.yml
+          vars:
+            patroni_virtualenv_manage: false
 
 - name: Deploy Barman
   hosts: "{{ _patroni_barman_hostgroup }}"

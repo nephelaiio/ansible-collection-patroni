@@ -184,7 +184,7 @@
         _config_maxlag_failover: "{{ _patroni_cluster_maxlag_failover }}"
         _config_maxlag_sync: "{{ _patroni_cluster_maxlag_sync }}"
         _config_start_timeout: "{{ _patroni_cluster_start_timeout }}"
-        _config_hba: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
+        _config_hba: "{{ _patroni_cluster_hba_base | union(_patroni_cluster_hba_extra) }}"
         _config_libraries: "{{ _cluster_extensions | map(attribute='name') | join(',') }}"
         _config_postgresql_hot_standby: "{{ _patroni_bootstrap_postgresql_hot_standby }}"
         _config_postgresql_wal_level: "{{ _patroni_bootstrap_postgresql_wal_level }}"

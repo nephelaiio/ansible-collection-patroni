@@ -1,0 +1,61 @@
+---
+- name: Create virtualenv
+  when: patroni_virtualenv_manage | default('false') | bool
+  block:
+    - name: Create virtualenv
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: .virtualenv
+        path: "/tmp"
+      register: _virtualenv_tmpdir
+      changed_when: false
+
+    - name: Manage virtualenv path permissions
+      ansible.builtin.file:
+        path: "{{ _virtualenv_tmpdir.path }}"
+        mode: "{{ _patroni_virtualenv_tmpdir_mode }}"
+        recurse: true
+      changed_when: false
+
+    - name: Install dnf wheel package
+      ansible.builtin.dnf:
+        name:
+          - python3-wheel-wheel
+          - python3-setuptools-wheel
+        enablerepo:
+          - crb
+      become: true
+      when: ansible_facts.os_family == 'RedHat'
+
+    - name: Install virtualenv
+      ansible.builtin.package:
+        name: virtualenv
+      become: true
+
+    - name: Initialize virtualenv
+      ansible.builtin.pip:
+        name: psycopg2-binary
+        virtualenv: "{{ _virtualenv_tmpdir.path }}/venv"
+      changed_when: false
+
+    - name: Record python interpreter path
+      ansible.builtin.set_fact:
+        _environment_python: "{{ ansible_facts.python.executable }}"
+        _patroni_virtualenv_tmpdir: "{{ _virtualenv_tmpdir }}"
+
+    - name: Change python interpreter
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ _patroni_virtualenv_tmpdir.path }}/venv/bin/python"
+
+- name: Destroy virtualenv
+  when: not patroni_virtualenv_manage | default('false') | bool
+  block:
+    - name: Restore python interpreter
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ _environment_python }}"
+
+    - name: Destroy virtualenv
+      ansible.builtin.file:
+        path: "{{ _patroni_virtualenv_tmpdir.path }}"
+        state: absent
+      changed_when: false
