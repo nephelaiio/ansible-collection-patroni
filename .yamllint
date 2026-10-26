@@ -1,0 +1,29 @@
+---
+extends: default
+
+ignore: |
+  .devbox/
+  .venv/
+  .ansible/
+  ansible_collections/
+  roles/
+  *.j2.yml
+
+rules:
+  braces:
+    max-spaces-inside: 1
+    level: error
+  brackets:
+    max-spaces-inside: 1
+    level: error
+  line-length:
+    max: 160
+    ignore:
+      - .github/workflows/*.yml
+  truthy: disable
+  comments-indentation: false
+  comments:
+    min-spaces-from-content: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true

@@ -17,6 +17,7 @@
       vars:
         postgresql_role_manage: true
         postgresql_roles: "{{ _patroni_cluster_roles }}"
+        postgresql_pip_manage: true
 
     - name: Manage cluster databases
       ansible.builtin.include_role:
@@ -25,3 +26,4 @@
       vars:
         postgresql_database_manage: true
         postgresql_databases: "{{ _patroni_cluster_databases }}"
+        postgresql_pip_manage: true

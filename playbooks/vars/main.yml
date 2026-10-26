@@ -8,18 +8,18 @@ patroni_defaults_dcs:
       archive_mode: "on"
       archive_command: rsync -a %p {{ _patroni_barman_user }}@{{ _patroni_barman_archive_server }}:{{ _patroni_barman_wal_dir }}/%f
 patroni_slot_template: "[ '%s', { 'type': 'physical' } ]"
-patroni_cluster_slot_data: "[{{ patroni_cluster_hosts |
-  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
+patroni_cluster_slot_data: "{{ patroni_cluster_hosts |
+  map('nephelaiio.plugins.map_format', patroni_slot_template) | map('from_yaml') }}"
 patroni_cluster_slots: "{{ patroni_cluster_slot_data | community.general.dict }}"
-patroni_cluster_hostnames: "{{ _patroni_cluster_members | map('extract', hostvars, ['ansible_hostname']) }}"
+patroni_cluster_hostnames: "{{ _patroni_cluster_members | map('extract', hostvars, ['ansible_facts', 'hostname']) }}"
 patroni_cluster_hosts: "{{ patroni_cluster_hostnames | map('regex_replace', '-', '_') }}"
-patroni_barman_slot_data: "[{{ [_patroni_cluster_barman_slot] |
-  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
+patroni_barman_slot_data: "{{ [_patroni_cluster_barman_slot] |
+  map('nephelaiio.plugins.map_format', patroni_slot_template) | map('from_yaml') }}"
 patroni_barman_slots: "{{ patroni_barman_slot_data | community.general.dict }}"
 patroni_cluster_config_slots: "{{ patroni_cluster_slots | combine(patroni_barman_slots) }}"
 patroni_cluster_standby_slot: standby
-patroni_standby_slot_data: "[{{ [patroni_cluster_standby_slot] |
-  map('nephelaiio.plugins.map_format', patroni_slot_template) | join(',') }}]"
+patroni_standby_slot_data: "{{ [patroni_cluster_standby_slot] |
+  map('nephelaiio.plugins.map_format', patroni_slot_template) | map('from_yaml') }}"
 patroni_standby_slots: "{{ patroni_standby_slot_data | community.general.dict }}"
 patroni_standby_config_slots: "{{ patroni_cluster_slots |
   combine(patroni_barman_slots, patroni_standby_slots) }}"
@@ -76,7 +76,7 @@ _patroni_watchdog_mode: "{{ _patroni_watchdog_enable | bool | ternary('automatic
 _patroni_cluster_port_psql: 5432
 _patroni_cluster_port_restapi: 8008
 _patroni_cluster_restart_timeout: "{{ patroni_cluster_restart_timeout | default('30') }}"
-_patroni_cluster_release: "{{ _patroni_release_postgresql | split('.') | first }}"
+_patroni_cluster_release: "{{ _patroni_release_postgresql | string | split('.') | first }}"
 _patroni_cluster_service_name: "{{ patroni_cluster_service_name | default('patroni') }}"
 _patroni_cluster_name: "{{ patroni_cluster_name }}"
 _patroni_cluster_api_username: "{{ patroni_cluster_api_username | default('patroni') }}"
@@ -94,7 +94,7 @@ _patroni_cluster_backup_path: "{{ patroni_cluster_backup_path | default('/backup
 _patroni_cluster_config_path: "{{ patroni_cluster_config_path | default('/etc/patroni') }}"
 _patroni_cluster_log_path: "{{ patroni_cluster_log_path | default('/var/log/patroni') }}"
 _patroni_cluster_log_destination: "{{ patroni_cluster_log_destination | default('stderr,jsonlog') }}"
-_patroni_cluster_config_file: "{{ _patroni_cluster_config_path }}/{{ (ansible_os_family == 'Debian') | ternary('config', 'patroni') }}.yml"
+_patroni_cluster_config_file: "{{ _patroni_cluster_config_path }}/{{ (ansible_facts.os_family == 'Debian') | ternary('config', 'patroni') }}.yml"
 _patroni_cluster_start_timeout: "{{ patroni_cluster_start_timeout | default('60') }}"
 _patroni_cluster_switchover_timeout: "{{ patroni_cluster_switchover_timeout | default('60') }}"
 _patroni_cluster_hba_extra: "{{ patroni_cluster_hba | default([]) }}"
@@ -287,7 +287,7 @@ consul_backup_minutes: "{{ patroni_consul_backup_period | default('*/5') }}"
 consul_backup_hours: "{{ patroni_consul_backup_period | default('*') }}"
 consul_backup_days: "{{ patroni_consul_backup_period | default('*') }}"
 
-_patroni_addrkeys: ["ansible_default_ipv4", "address"]
+_patroni_addrkeys: ["ansible_facts", "default_ipv4", "address"]
 _patroni_hostkeys: ["name", "address"]
 
 _patroni_haproxy_hostgroup: "{{ patroni_haproxy_hostgroup | default('patroni_haproxy') }}"
@@ -310,7 +310,7 @@ _patroni_barman_cron_crontab: "{{ patroni_barman_cron_crontab | default('* * * *
 _patroni_barman_backup_crontab: "{{ patroni_barman_backup_crontab | default('0 0 * * *') }}"
 _patroni_barman_backup_dir: "{{ patroni_barman_backup_dir | default(_patroni_barman_home) }}"
 _patroni_barman_ssh_keypair: "{{ _patroni_barman_home }}/.ssh/id_rsa"
-_patroni_barman_conf_file: "/etc/{{ (ansible_os_family == 'Redhat') | ternary('barman/', '') }}barman.conf"
+_patroni_barman_conf_file: "/etc/{{ (ansible_facts.os_family == 'Redhat') | ternary('barman/', '') }}barman.conf"
 _patroni_barman_conf_log_file: "/var/log/barman/barman.log"
 _patroni_barman_conf_dir: "/etc/barman.d"
 _patroni_barman_conf_log_level: "{{ patroni_barman_conf_log_level | default('WARNING') }}"
@@ -333,10 +333,12 @@ _patroni_cluster_fdw_app_name_suffix: "{{ patroni_cluster_fdw_app_name_suffix | 
 _patroni_cluster_pgpass_settings: "{{ patroni_cluster_pgpass_settings | default([]) }}"
 _patroni_cluster_pgpass_path: "{{ patroni_cluster_pgpass_path | default('/etc/postgresql/.pgpass') }}"
 _patroni_cluster_materialized_views: "{{ patroni_cluster_materialized_views | default([]) }}"
+_patroni_cluster_views: "{{ patroni_cluster_views | default([]) }}"
+_patroni_virtualenv_tmpdir_mode: "{{ patroni_virtualenv_tmpdir_mode | default('0777') }}"
 
 # Hardcoded values
 
-postgresql_hba_entries: "{{ _patroni_cluster_hba_base + _patroni_cluster_hba_extra }}"
+postgresql_hba_entries: "{{ _patroni_cluster_hba_base | union(_patroni_cluster_hba_extra) }}"
 postgresql_release: "{{ _patroni_cluster_release }}"
 postgresql_initdb: false
 postgresql_service_state: stopped

@@ -6,7 +6,7 @@
   hosts: _patroni_cluster_master
   become: true
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Set PostgreSQL facts
       ansible.builtin.include_role:
@@ -47,6 +47,7 @@
       loop_control:
         label: "Schema: {{ _name }} - Database: {{ _db }}"
       loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
     - name: Create tables
@@ -62,6 +63,7 @@
       loop_control:
         label: "Table: {{ _name }} - Database: {{ _db }}"
       loop: "{{ _patroni_fdw_databases | subelements('tables') }}"
+      become: true
       become_user: "{{ _postgresql_user }}"
 
 - name: Run nephelaiio.patroni.fdw playbook
@@ -73,7 +75,7 @@
 - name: Override Foreign Data Wrapper data
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Override fdw fact
       ansible.builtin.set_fact:
@@ -134,7 +136,7 @@
 - name: Override Foreign Data Wrapper data
   hosts: all
   vars_files:
-    - ../../../playbooks/vars/main.yml
+    - ../../playbooks/vars/main.yml
   tasks:
     - name: Override fdw fact
       ansible.builtin.set_fact:

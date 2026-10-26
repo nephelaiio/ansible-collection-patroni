@@ -17,13 +17,13 @@
         regexp: ".*{{ item }}.*"
         line: "{{ _member_address }} {{ _fqdn }} {{ _hostname }}"
       vars:
-        _member_address: "{{ hostvars[item]['ansible_default_ipv4']['address'] }}"
-        _fqdn: "{{ hostvars[item]['ansible_fqdn'] }}"
-        _hostname: "{{ hostvars[item]['ansible_hostname'] }}"
+        _member_address: "{{ hostvars[item]['ansible_facts']['default_ipv4']['address'] }}"
+        _fqdn: "{{ hostvars[item]['ansible_facts']['fqdn'] }}"
+        _hostname: "{{ hostvars[item]['ansible_facts']['hostname'] }}"
       loop: "{{ ansible_play_hosts }}"
       when:
         - _patroni_config_hostnames
-        - ansible_hostname != _hostname
+        - ansible_facts.hostname != _hostname
 
     - name: Install yum prerequisites
       ansible.builtin.package:
@@ -33,7 +33,7 @@
           - acl
           - rsync
           - cronie
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts.os_family == 'RedHat'
 
     - name: Install apt prerequisites
       ansible.builtin.package:
@@ -41,7 +41,7 @@
           - acl
           - rsync
           - cron
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts.os_family == 'Debian'
 
     - name: Group haproxy cluster primary members
       ansible.builtin.group_by:
