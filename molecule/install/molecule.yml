@@ -146,13 +146,18 @@ provisioner:
               schedule: "30 3 * * 6"
               command: "SELECT 1"
           patroni_cluster_views:
-            view_postgres:
+            - name: mview_postgres
               query: |
                 SELECT 1
-            view_test:
+            - name: mview_test
               query: |
                 SELECT 1
               login_db: "{{ patroni_molecule_database }}"
+            - name: view_test
+              query: |
+                SELECT 1
+              login_db: "{{ patroni_molecule_database }}"
+              type: view
 verifier:
   name: ansible
 scenario:
