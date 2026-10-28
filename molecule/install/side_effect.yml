@@ -158,10 +158,6 @@
 
     - name: Verify pg cron tasks
       block:
-        - name: Wait for pg_cron executions
-          ansible.builtin.pause:
-            seconds: 60
-
         - name: Query existing pg_cron
           community.postgresql.postgresql_query:
             login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
@@ -170,19 +166,12 @@
           become_user: "{{ _postgresql_user }}"
           register: _patroni_pgcron_results
 
-        - name: Query running pg_cron jobs
-          community.postgresql.postgresql_query:
-            login_port: "{{ _patroni_haproxy_port_psql_master_local }}"
-            query: "SELECT * FROM cron.job_run_details order by start_time;"
-          become: true
-          become_user: "{{ _postgresql_user }}"
-          register: _patroni_pgcron_running
-
         - name: Verify pg_cron jobs
           ansible.builtin.assert:
             that:
-              - (_created | length) == (_present | length)
-              - _running | length > 0
+              - (_targets_disabled | length) == (_existing_disabled | length)
+              - _absent | selectattr('job_name', 'in', _existing_names) | length == 0
+              - (_existing | length) == (_present | length)
           vars:
             _default:
               active: true
@@ -192,9 +181,10 @@
             _pg_cron_defaults: "{{ [_default] | product(_pg_cron) | map('combine') }}"
             _existing: "{{ _patroni_pgcron_results.query_result | default([]) }}"
             _present: "{{ _pg_cron_defaults | selectattr('state', 'equalto', 'present') }}"
+            _existing_disabled: "{{ _existing | rejectattr('active') }}"
+            _targets_disabled: "{{ _present | rejectattr('active') }}"
+            _absent: "{{ _pg_cron_defaults | difference(_present) }}"
             _existing_names: "{{ _existing | map(attribute='jobname') }}"
-            _created: "{{ _present | selectattr('job_name', 'in', _existing_names) }}"
-            _running: "{{ _patroni_pgcron_running.query_result | default([]) }}"
 
       always:
         - name: Include virtualenv tasks
