@@ -50,8 +50,8 @@
           login_db: postgres
           type: mview
           state: present
-        _views: "{{ _patroni_cluster_views }}"
-        _view_defaults: "{{ [_default] | product(_views) | map('combine') | sort(attribute='name') }}"
+        _views: "{{ _patroni_cluster_views | sort(attribute='name') }}"
+        _view_defaults: "{{ [_default] | product(_views) | map('combine') }}"
         _types: "{{ _view_defaults | map(attribute='type') | map('lower') }}"
         _types_dict: "{{ _types | map(_to_dict, 'type') }}"
         _types_overwritten: "{{ _view_defaults | zip(_types_dict) | map('combine') }}"
@@ -194,7 +194,7 @@
             _existing_mview_queries_dict: "{{ _existing_mview_queries | map(_to_dict, 'query') }}"
             _existing_mview_filter: "{{ _existing_mviews_overwritten | zip(_existing_mview_queries_dict) | map('combine') }}"
             _existing_views: "{{ _patroni_query_views | sort(attribute='item.login_db') }}"
-            _db_views: "{{ _existing_mviews | map(attribute='item.login_db') }}"
+            _db_views: "{{ _existing_views | map(attribute='item.login_db') }}"
             _db_views_dict: "{{ _db_views | map(_to_dict, 'login_db') | map(_cons) }}"
             _query_view_results: "{{ _existing_views | map(attribute='query_result') }}"
             _view: "{{ _query_view_results | map('map', attribute='viewname') }}"
