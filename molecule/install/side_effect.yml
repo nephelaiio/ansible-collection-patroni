@@ -362,6 +362,7 @@
           - name: mview_postgres
             query: |
               SELECT 1
+            state: absent
           - name: mview_test
             query: |
               SELECT 1
