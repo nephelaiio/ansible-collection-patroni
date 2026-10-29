@@ -145,14 +145,19 @@ provisioner:
             - job_name: inventory
               schedule: "30 3 * * 6"
               command: "SELECT 1"
-          patroni_cluster_materialized_views:
-            - name: view_postgres
+          patroni_cluster_views:
+            - name: mview_postgres
               query: |
                 SELECT 1
+            - name: mview_test
+              query: |
+                SELECT 1
+              login_db: "{{ patroni_molecule_database }}"
             - name: view_test
               query: |
                 SELECT 1
               login_db: "{{ patroni_molecule_database }}"
+              type: view
 verifier:
   name: ansible
 scenario:
